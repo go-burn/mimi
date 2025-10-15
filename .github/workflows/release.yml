@@ -62,7 +62,7 @@ jobs:
 
       - name: 验证 NSIS 安装 (Windows)
         if: matrix.platform == 'windows'
-        run: makensis /VERSION
+        run: makensis -VERSION
         shell: bash
 
       - name: 安装 Wails CLI (macOS)
