@@ -83,12 +83,12 @@ jobs:
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          wails3 package -platform windows/${{ matrix.arch }}
+          wails3 package
 
       - name: 构建应用 (macOS)
         if: matrix.platform == 'darwin'
         run: |
-          wails3 package -platform darwin/${{ matrix.arch }}
+          wails3 package
 
       - name: 打包构建产物 (Windows)
         if: matrix.platform == 'windows'
