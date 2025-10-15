@@ -130,14 +130,24 @@ jobs:
           mkdir -p release
 
           # 查找构建产物并压缩
-          if [ -f "build/bin/mimi.app/Contents/MacOS/mimi" ]; then
+          if [ -f "bin/mimi.app/Contents/MacOS/mimi" ]; then
+            cd bin
+            tar -czf "../release/${outputName}.tar.gz" mimi.app
+            cd ..
+          elif [ -f "build/bin/mimi.app/Contents/MacOS/mimi" ]; then
             cd build/bin
             tar -czf "../../release/${outputName}.tar.gz" mimi.app
             cd ../..
+          elif [ -f "bin/mimi" ]; then
+            tar -czf "release/${outputName}.tar.gz" -C bin mimi
           elif [ -f "build/bin/mimi" ]; then
             tar -czf "release/${outputName}.tar.gz" -C build/bin mimi
           else
-            echo "找不到构建产物"
+            echo "❌ 找不到构建产物"
+            echo "查找 bin/ 目录:"
+            ls -R bin/ 2>/dev/null || echo "bin/ 不存在"
+            echo "查找 build/bin/ 目录:"
+            ls -R build/bin/ 2>/dev/null || echo "build/bin/ 不存在"
             exit 1
           fi
 
