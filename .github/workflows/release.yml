@@ -21,10 +21,6 @@ jobs:
             extension: .exe
           - os: macos-latest
             platform: darwin
-            arch: amd64
-            extension: ''
-          - os: macos-latest
-            platform: darwin
             arch: arm64
             extension: ''
 
