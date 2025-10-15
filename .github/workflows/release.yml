@@ -33,7 +33,7 @@ jobs:
       - name: 设置 Go 环境
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.0'
+          go-version: '1.24.7'
           cache: true
 
       - name: 设置 Node.js 环境
@@ -52,6 +52,12 @@ jobs:
         run: |
           go install github.com/wailsapp/wails/v3/cmd/wails3@latest
           echo "$env:USERPROFILE\go\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: 安装 NSIS (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          choco install nsis -y
 
       - name: 安装 Wails CLI (macOS)
         if: matrix.platform == 'darwin'
@@ -105,14 +111,22 @@ jobs:
           # 创建发布目录
           New-Item -ItemType Directory -Force -Path release
 
-          # 查找构建产物并压缩
-          if (Test-Path "bin/mimi.exe") {
+          # 优先查找 NSIS 安装程序
+          if (Test-Path "bin/mimi-amd64-installer.exe") {
+            Copy-Item "bin/mimi-amd64-installer.exe" -Destination "release/${outputName}-installer.exe"
+            Write-Host "✅ 找到 NSIS 安装程序: bin/mimi-amd64-installer.exe"
+          } elseif (Test-Path "bin/mimi.exe") {
             Compress-Archive -Path "bin/mimi.exe" -DestinationPath "release/${outputName}.zip"
+            Write-Host "✅ 找到可执行文件: bin/mimi.exe"
           } elseif (Test-Path "build/bin/mimi.exe") {
             Compress-Archive -Path "build/bin/mimi.exe" -DestinationPath "release/${outputName}.zip"
+            Write-Host "✅ 找到可执行文件: build/bin/mimi.exe"
           } else {
-            Write-Error "找不到构建产物: bin/mimi.exe 或 build/bin/mimi.exe"
-            ls -R bin, build/bin -ErrorAction SilentlyContinue
+            Write-Error "❌ 找不到构建产物"
+            Write-Host "查找 bin/ 目录:"
+            Get-ChildItem -Path bin -Recurse -ErrorAction SilentlyContinue | Select-Object FullName
+            Write-Host "查找 build/bin/ 目录:"
+            Get-ChildItem -Path build/bin -Recurse -ErrorAction SilentlyContinue | Select-Object FullName
             exit 1
           }
 
@@ -180,7 +194,6 @@ jobs:
           generate_release_notes: true
           files: |
             artifacts/mimi-windows-amd64/*
-            artifacts/mimi-darwin-amd64/*
             artifacts/mimi-darwin-arm64/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -190,5 +203,4 @@ jobs:
         with:
           name: |
             mimi-windows-amd64
-            mimi-darwin-amd64
             mimi-darwin-arm64
