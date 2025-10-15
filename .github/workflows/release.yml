@@ -45,6 +45,11 @@ jobs:
         with:
           node-version: '20'
 
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
       - name: 安装 Wails CLI (Windows)
         if: matrix.platform == 'windows'
         shell: pwsh
@@ -62,9 +67,11 @@ jobs:
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          # 安装 npm 依赖(如果有前端资源)
-          if (Test-Path package.json) {
-            npm install
+          # 安装前端依赖
+          if (Test-Path frontend/package.json) {
+            cd frontend
+            pnpm install
+            cd ..
           }
           # 下载 Go 模块
           go mod download
@@ -72,9 +79,11 @@ jobs:
       - name: 安装依赖 (macOS)
         if: matrix.platform == 'darwin'
         run: |
-          # 安装 npm 依赖(如果有前端资源)
-          if [ -f package.json ]; then
-            npm install
+          # 安装前端依赖
+          if [ -f frontend/package.json ]; then
+            cd frontend
+            pnpm install
+            cd ..
           fi
           # 下载 Go 模块
           go mod download
@@ -101,10 +110,13 @@ jobs:
           New-Item -ItemType Directory -Force -Path release
 
           # 查找构建产物并压缩
-          if (Test-Path "build/bin/mimi.exe") {
+          if (Test-Path "bin/mimi.exe") {
+            Compress-Archive -Path "bin/mimi.exe" -DestinationPath "release/${outputName}.zip"
+          } elseif (Test-Path "build/bin/mimi.exe") {
             Compress-Archive -Path "build/bin/mimi.exe" -DestinationPath "release/${outputName}.zip"
           } else {
-            Write-Error "找不到构建产物: build/bin/mimi.exe"
+            Write-Error "找不到构建产物: bin/mimi.exe 或 build/bin/mimi.exe"
+            ls -R bin, build/bin -ErrorAction SilentlyContinue
             exit 1
           }
 
