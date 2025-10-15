@@ -12,7 +12,7 @@ var systemTray *application.SystemTray
 //go:embed build/appicon.png
 var Icon []byte
 
-//go:embed build/icons.icns
+//go:embed build/darwin/icons.icns
 var macTemplateIcon []byte
 
 //go:embed build/icon-dark.png
