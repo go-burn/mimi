@@ -5,10 +5,10 @@
 	"info": {
 		"0000": {
 			"ProductVersion": "0.1.0",
-			"CompanyName": "My Company",
-			"FileDescription": "My Product Description",
-			"LegalCopyright": "© now, My Company",
-			"ProductName": "My Product",
+			"CompanyName": "goburn",
+			"FileDescription": "",
+			"LegalCopyright": "© now, goburn",
+			"ProductName": "Mimi",
 			"Comments": "This is a comment"
 		}
 	}

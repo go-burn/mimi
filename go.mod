@@ -1,6 +1,6 @@
 module mimi
 
-go 1.24.0
+go 1.24.7
 
 require (
 	github.com/dop251/goja v0.0.0-20251008123653-cf18d89f3cf6

@@ -4,7 +4,7 @@
         <key>CFBundlePackageType</key>
             <string>APPL</string>
         <key>CFBundleName</key>
-            <string>mimi dev</string>
+            <string>Mimi dev</string>
         <key>CFBundleExecutable</key>
             <string>mimi</string>
         <key>CFBundleIdentifier</key>

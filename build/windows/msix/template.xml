@@ -10,13 +10,13 @@
     <Installer
         Path="mimi"
         Arguments=""
-        InstallLocation="C:\Program Files\My Company\My Product">
+        InstallLocation="C:\Program Files\goburn\Mimi">
     </Installer>
     <PackageInformation
-        PackageName="My Product"
-        PackageDisplayName="My Product"
-        PublisherName="CN=My Company"
-        PublisherDisplayName="My Company"
+        PackageName="Mimi"
+        PackageDisplayName="Mimi"
+        PublisherName="CN=goburn"
+        PublisherDisplayName="goburn"
         Version="0.1.0.0"
         PackageDescription="My Product Description">
         <Capabilities>
@@ -27,7 +27,7 @@
             <Application
                 Id="com.goburn.mimi"
                 Description="My Product Description"
-                DisplayName="My Product"
+                DisplayName="Mimi"
                 ExecutableName="mimi"
                 EntryPoint="Windows.FullTrustApplication">
                 
@@ -41,8 +41,8 @@
         </Dependencies>
         <Properties>
             <Framework>false</Framework>
-            <DisplayName>My Product</DisplayName>
-            <PublisherDisplayName>My Company</PublisherDisplayName>
+            <DisplayName>Mimi</DisplayName>
+            <PublisherDisplayName>goburn</PublisherDisplayName>
             <Description>My Product Description</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>

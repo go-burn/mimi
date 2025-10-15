@@ -7,13 +7,13 @@
   
   <Identity 
     Name="com.goburn.mimi"
-    Publisher="CN=My Company"
+    Publisher="CN=goburn"
     Version="0.1.0.0" 
     ProcessorArchitecture="x64" />
   
   <Properties>
-    <DisplayName>My Product</DisplayName>
-    <PublisherDisplayName>My Company</PublisherDisplayName>
+    <DisplayName>Mimi</DisplayName>
+    <PublisherDisplayName>goburn</PublisherDisplayName>
     <Description>My Product Description</Description>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -29,7 +29,7 @@
   <Applications>
     <Application Id="com.goburn.mimi" Executable="mimi" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="My Product"
+        DisplayName="Mimi"
         Description="My Product Description"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
