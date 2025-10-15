@@ -55,9 +55,15 @@ jobs:
 
       - name: 安装 NSIS (Windows)
         if: matrix.platform == 'windows'
-        shell: pwsh
         run: |
-          choco install nsis -y
+          choco install nsis -y --no-progress
+          echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
+        shell: bash
+
+      - name: 验证 NSIS 安装 (Windows)
+        if: matrix.platform == 'windows'
+        run: makensis /VERSION
+        shell: bash
 
       - name: 安装 Wails CLI (macOS)
         if: matrix.platform == 'darwin'
