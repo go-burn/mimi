@@ -44,7 +44,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: 安装 Wails CLI (Windows)
         if: matrix.platform == 'windows'
@@ -59,7 +58,8 @@ jobs:
           go install github.com/wailsapp/wails/v3/cmd/wails3@latest
           echo "$HOME/go/bin" >> $GITHUB_PATH
 
-      - name: 安装依赖
+      - name: 安装依赖 (Windows)
+        if: matrix.platform == 'windows'
         shell: pwsh
         run: |
           # 安装 npm 依赖(如果有前端资源)
@@ -69,10 +69,26 @@ jobs:
           # 下载 Go 模块
           go mod download
 
-      - name: 构建应用
+      - name: 安装依赖 (macOS)
+        if: matrix.platform == 'darwin'
+        run: |
+          # 安装 npm 依赖(如果有前端资源)
+          if [ -f package.json ]; then
+            npm install
+          fi
+          # 下载 Go 模块
+          go mod download
+
+      - name: 构建应用 (Windows)
+        if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          wails3 package
+          wails3 package -platform windows/${{ matrix.arch }}
+
+      - name: 构建应用 (macOS)
+        if: matrix.platform == 'darwin'
+        run: |
+          wails3 package -platform darwin/${{ matrix.arch }}
 
       - name: 打包构建产物 (Windows)
         if: matrix.platform == 'windows'
