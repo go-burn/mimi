@@ -116,13 +116,13 @@ jobs:
           $GIT_COMMIT = git rev-parse --short HEAD
           $GIT_BRANCH = git rev-parse --abbrev-ref HEAD
 
-          # 构建 ldflags
-          $LDFLAGS = "-X main.Version=$VERSION -X main.BuildTime=$BUILD_TIME -X main.GitCommit=$GIT_COMMIT -X main.GitBranch=$GIT_BRANCH"
-
           Write-Host "版本信息: Version=$VERSION, BuildTime=$BUILD_TIME, Commit=$GIT_COMMIT, Branch=$GIT_BRANCH"
 
-          # 通过 GOFLAGS 环境变量传递 ldflags
-          $env:GOFLAGS = "-ldflags=$LDFLAGS"
+          # 通过环境变量传递版本信息给 Taskfile
+          $env:APP_VERSION = $VERSION
+          $env:BUILD_TIME = $BUILD_TIME
+          $env:GIT_COMMIT = $GIT_COMMIT
+          $env:GIT_BRANCH = $GIT_BRANCH
           wails3 package
 
       - name: 构建应用 (macOS)
@@ -137,13 +137,13 @@ jobs:
           GIT_COMMIT=$(git rev-parse --short HEAD)
           GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-          # 构建 ldflags
-          LDFLAGS="-X main.Version=$VERSION -X main.BuildTime=$BUILD_TIME -X main.GitCommit=$GIT_COMMIT -X main.GitBranch=$GIT_BRANCH"
-
           echo "版本信息: Version=$VERSION, BuildTime=$BUILD_TIME, Commit=$GIT_COMMIT, Branch=$GIT_BRANCH"
 
-          # 通过 GOFLAGS 环境变量传递 ldflags
-          export GOFLAGS="-ldflags=$LDFLAGS"
+          # 通过环境变量传递版本信息给 Taskfile
+          export APP_VERSION=$VERSION
+          export BUILD_TIME=$BUILD_TIME
+          export GIT_COMMIT=$GIT_COMMIT
+          export GIT_BRANCH=$GIT_BRANCH
           wails3 package
 
       - name: 打包构建产物 (Windows)

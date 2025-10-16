@@ -18,7 +18,8 @@ tasks:
     cmds:
       - go build {{.BUILD_FLAGS}} -o {{.BIN_DIR}}/{{.APP_NAME}}
     vars:
-      BUILD_FLAGS: '{{if eq .PRODUCTION "true"}}-tags "production,with_gvisor" -trimpath -buildvcs=false -ldflags="-w -s"{{else}}-tags with_gvisor -buildvcs=false -gcflags=all="-l"{{end}}'
+      VERSION_LDFLAGS: '{{if .APP_VERSION}}-X main.Version={{.APP_VERSION}} -X main.BuildTime={{.BUILD_TIME}} -X main.GitCommit={{.GIT_COMMIT}} -X main.GitBranch={{.GIT_BRANCH}}{{end}}'
+      BUILD_FLAGS: '{{if eq .PRODUCTION "true"}}-tags "production,with_gvisor" -trimpath -buildvcs=false -ldflags="-w -s {{.VERSION_LDFLAGS}}"{{else}}-tags with_gvisor -buildvcs=false -gcflags=all="-l" {{if .VERSION_LDFLAGS}}-ldflags="{{.VERSION_LDFLAGS}}"{{end}}{{end}}'
     env:
       GOOS: linux
       CGO_ENABLED: 1
