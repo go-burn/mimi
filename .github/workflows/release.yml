@@ -121,8 +121,9 @@ jobs:
 
           Write-Host "版本信息: Version=$VERSION, BuildTime=$BUILD_TIME, Commit=$GIT_COMMIT, Branch=$GIT_BRANCH"
 
-          # 使用 ldflags 构建
-          wails3 package -ldflags "$LDFLAGS"
+          # 通过 GOFLAGS 环境变量传递 ldflags
+          $env:GOFLAGS = "-ldflags=$LDFLAGS"
+          wails3 package
 
       - name: 构建应用 (macOS)
         if: matrix.platform == 'darwin'
@@ -141,8 +142,9 @@ jobs:
 
           echo "版本信息: Version=$VERSION, BuildTime=$BUILD_TIME, Commit=$GIT_COMMIT, Branch=$GIT_BRANCH"
 
-          # 使用 ldflags 构建
-          wails3 package -ldflags "$LDFLAGS"
+          # 通过 GOFLAGS 环境变量传递 ldflags
+          export GOFLAGS="-ldflags=$LDFLAGS"
+          wails3 package
 
       - name: 打包构建产物 (Windows)
         if: matrix.platform == 'windows'
