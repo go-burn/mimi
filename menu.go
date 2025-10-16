@@ -159,6 +159,16 @@ func commonMenu() {
 
 func quitMenu() {
 	menu.AddSeparator()
+	// 添加版本信息菜单项（禁用点击，仅用于显示）
+	menu.Add("版本: " + GetVersion()).SetEnabled(false)
+	menu.Add("关于").OnClick(func(_ *application.Context) {
+		dialog := application.InfoDialog()
+		dialog.SetTitle("关于 Mimi")
+		dialog.SetIcon(Icon)
+		dialog.SetMessage(GetVersionInfo())
+		dialog.Show()
+	})
+	menu.AddSeparator()
 	menu.Add("退出应用").
 		SetAccelerator("CmdOrCtrl+Q").
 		OnClick(func(_ *application.Context) {
