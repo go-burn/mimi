@@ -19,6 +19,10 @@ jobs:
             platform: windows
             arch: amd64
             extension: .exe
+          - os: windows-latest
+            platform: windows
+            arch: arm64
+            extension: .exe
           - os: macos-latest
             platform: darwin
             arch: arm64
@@ -115,15 +119,16 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}"
-          $outputName = "mimi-${version}-windows-amd64"
+          $arch = "${{ matrix.arch }}"
+          $outputName = "mimi-${version}-windows-${arch}"
 
           # 创建发布目录
           New-Item -ItemType Directory -Force -Path release
 
           # 优先查找 NSIS 安装程序
-          if (Test-Path "bin/mimi-amd64-installer.exe") {
-            Copy-Item "bin/mimi-amd64-installer.exe" -Destination "release/${outputName}-installer.exe"
-            Write-Host "✅ 找到 NSIS 安装程序: bin/mimi-amd64-installer.exe"
+          if (Test-Path "bin/mimi-${arch}-installer.exe") {
+            Copy-Item "bin/mimi-${arch}-installer.exe" -Destination "release/${outputName}-installer.exe"
+            Write-Host "✅ 找到 NSIS 安装程序: bin/mimi-${arch}-installer.exe"
           } elseif (Test-Path "bin/mimi.exe") {
             Compress-Archive -Path "bin/mimi.exe" -DestinationPath "release/${outputName}.zip"
             Write-Host "✅ 找到可执行文件: bin/mimi.exe"
@@ -203,6 +208,7 @@ jobs:
           generate_release_notes: true
           files: |
             artifacts/mimi-windows-amd64/*
+            artifacts/mimi-windows-arm64/*
             artifacts/mimi-darwin-arm64/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -212,4 +218,5 @@ jobs:
         with:
           name: |
             mimi-windows-amd64
+            mimi-windows-arm64
             mimi-darwin-arm64
