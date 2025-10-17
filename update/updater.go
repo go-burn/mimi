@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"mimi/config"
 	"net"
 	"net/http"
 	"net/url"
@@ -86,12 +87,12 @@ func getGitHubToken(logger *slog.Logger) string {
 // 配置文件位置: ~/.config/mimi/github_token
 func readTokenFromConfigFile(logger *slog.Logger) string {
 	// 获取用户主目录
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := config.GetAppDataDir()
 	if err != nil {
 		return ""
 	}
 
-	data, err := os.ReadFile(homeDir + "/.config/mimi/github_token")
+	data, err := os.ReadFile(homeDir + "/github_token")
 	if err != nil {
 		return ""
 	}
