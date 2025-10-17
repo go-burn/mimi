@@ -152,6 +152,7 @@ jobs:
         run: |
           $version = "${{ github.ref_name }}"
           $arch = "${{ matrix.arch }}"
+          # 符合 go-github-selfupdate 的命名规范
           $outputName = "mimi-${version}-windows-${arch}"
 
           # 创建发布目录
@@ -161,11 +162,14 @@ jobs:
           if (Test-Path "bin/mimi-${arch}-installer.exe") {
             Copy-Item "bin/mimi-${arch}-installer.exe" -Destination "release/${outputName}-installer.exe"
             Write-Host "✅ 找到 NSIS 安装程序: bin/mimi-${arch}-installer.exe"
-          } elseif (Test-Path "bin/mimi.exe") {
-            Compress-Archive -Path "bin/mimi.exe" -DestinationPath "release/${outputName}.zip"
+          }
+
+          # 同时复制可执行文件用于自动更新 (go-github-selfupdate 需要)
+          if (Test-Path "bin/mimi.exe") {
+            Copy-Item "bin/mimi.exe" -Destination "release/${outputName}.exe"
             Write-Host "✅ 找到可执行文件: bin/mimi.exe"
           } elseif (Test-Path "build/bin/mimi.exe") {
-            Compress-Archive -Path "build/bin/mimi.exe" -DestinationPath "release/${outputName}.zip"
+            Copy-Item "build/bin/mimi.exe" -Destination "release/${outputName}.exe"
             Write-Host "✅ 找到可执行文件: build/bin/mimi.exe"
           } else {
             Write-Error "❌ 找不到构建产物"
@@ -180,24 +184,35 @@ jobs:
         if: matrix.platform == 'darwin'
         run: |
           version="${{ github.ref_name }}"
+          # 符合 go-github-selfupdate 的命名规范
           outputName="mimi-${version}-darwin-${{ matrix.arch }}"
 
           # 创建发布目录
           mkdir -p release
 
-          # 查找构建产物并压缩
+          # 查找构建产物
           if [ -f "bin/mimi.app/Contents/MacOS/mimi" ]; then
+            # 打包 .app 用于分发
             cd bin
-            tar -czf "../release/${outputName}.tar.gz" mimi.app
+            tar -czf "../release/${outputName}.app.tar.gz" mimi.app
             cd ..
+            # 复制可执行文件用于自动更新 (go-github-selfupdate 需要)
+            cp "bin/mimi.app/Contents/MacOS/mimi" "release/${outputName}"
+            echo "✅ 找到 .app 包: bin/mimi.app"
           elif [ -f "build/bin/mimi.app/Contents/MacOS/mimi" ]; then
+            # 打包 .app 用于分发
             cd build/bin
-            tar -czf "../../release/${outputName}.tar.gz" mimi.app
+            tar -czf "../../release/${outputName}.app.tar.gz" mimi.app
             cd ../..
+            # 复制可执行文件用于自动更新
+            cp "build/bin/mimi.app/Contents/MacOS/mimi" "release/${outputName}"
+            echo "✅ 找到 .app 包: build/bin/mimi.app"
           elif [ -f "bin/mimi" ]; then
-            tar -czf "release/${outputName}.tar.gz" -C bin mimi
+            cp "bin/mimi" "release/${outputName}"
+            echo "✅ 找到可执行文件: bin/mimi"
           elif [ -f "build/bin/mimi" ]; then
-            tar -czf "release/${outputName}.tar.gz" -C build/bin mimi
+            cp "build/bin/mimi" "release/${outputName}"
+            echo "✅ 找到可执行文件: build/bin/mimi"
           else
             echo "❌ 找不到构建产物"
             echo "查找 bin/ 目录:"

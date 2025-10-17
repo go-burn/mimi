@@ -117,6 +117,9 @@ func main() {
 
 		IsFullyInitialized = true
 		MLog.Info("========== 后台初始化完成 ==========")
+
+		// 12. 启动后台更新检查
+		startBackgroundUpdateChecker()
 	}()
 
 	// 12. 设置信号处理器,确保意外退出时也能清理资源

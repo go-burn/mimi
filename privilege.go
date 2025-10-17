@@ -27,77 +27,22 @@ func RequestAdminPrivilege(enableTun bool) error {
 		return nil
 	}
 
-	execPath, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("获取可执行文件路径失败: %w", err)
+	// 构建环境变量
+	var envVars []string
+	if enableTun {
+		envVars = append(envVars, "MIMI_ENABLE_TUN=1")
+		MLog.Info("将通过环境变量 MIMI_ENABLE_TUN=1 启动新进程")
 	}
 
-	switch runtime.GOOS {
-	case "darwin":
-		// macOS 使用 osascript 请求权限
-		MLog.Info("请求管理员权限以启动 TUN 模式", "execPath", execPath)
+	MLog.Info("请求管理员权限重启应用")
 
-		// 获取当前用户信息
-		currentUID := os.Getuid()
-
-		// 构建启动命令：通过环境变量传递 TUN 启用意图
-		// 使用 env 命令设置环境变量，避免文件系统 I/O
-		launchCmd := fmt.Sprintf("'%s'", execPath)
-		if enableTun {
-			launchCmd = fmt.Sprintf("env MIMI_ENABLE_TUN=1 '%s'", execPath)
-			MLog.Info("将通过环境变量 MIMI_ENABLE_TUN=1 启动新进程")
-		}
-
-		// 关键组合：
-		// 1. osascript "with administrator privileges" 让命令以 root 执行
-		// 2. launchctl asuser 让进程运行在用户会话中（GUI 可访问）
-		// 3. env 命令设置环境变量传递启动意图
-		// 结果：root 权限 + GUI 可见 + 无文件残留
-		script := fmt.Sprintf(
-			`do shell script "launchctl asuser %d %s &" with administrator privileges`,
-			currentUID, launchCmd,
-		)
-		cmd := exec.Command("osascript", "-e", script)
-
-		// 异步执行权限提升命令，不等待完成
-		// 这样可以立即退出用户进程，避免阻塞
-		if err := cmd.Start(); err != nil {
-			MLog.Error("启动权限提升命令失败", "error", err)
-			return fmt.Errorf("启动权限提升命令失败: %w", err)
-		}
-
-		GracefulExit()
-
-	case "linux":
-		// Linux 使用 pkexec 或 sudo
-		if _, err := exec.LookPath("pkexec"); err == nil {
-			// 使用 env 命令设置环境变量
-			var cmd *exec.Cmd
-			if enableTun {
-				cmd = exec.Command("pkexec", "env", "MIMI_ENABLE_TUN=1", execPath)
-				MLog.Info("将通过环境变量 MIMI_ENABLE_TUN=1 启动新进程")
-			} else {
-				cmd = exec.Command("pkexec", execPath)
-			}
-			err := cmd.Start()
-			if err != nil {
-				return fmt.Errorf("使用 pkexec 启动失败: %w", err)
-			}
-			GracefulExit()
-		} else if _, err := exec.LookPath("sudo"); err == nil {
-			// 回退到 sudo
-			return fmt.Errorf("需要管理员权限,请使用: sudo %s", execPath)
-		}
-		return fmt.Errorf("未找到权限提升工具(pkexec/sudo)")
-
-	case "windows":
-		// Windows 使用 runas
-		// 注意: 在 Windows 上需要使用 UAC 提示
-		return fmt.Errorf("Windows TUN 模式需要以管理员身份运行应用")
-
-	default:
-		return fmt.Errorf("不支持的操作系统: %s", runtime.GOOS)
+	// 使用统一的重启函数，以管理员权限启动
+	if err := RestartApplication(true, envVars...); err != nil {
+		return err
 	}
+
+	// 优雅退出当前进程
+	GracefulExit()
 
 	return nil
 }
@@ -148,6 +93,193 @@ func GetPrivilegeStatus() string {
 		return "✗ 需要管理员权限 - " + strings.Join(methods, ", ")
 	}
 	return "✗ 需要管理员权限"
+}
+
+// RestartApplication 重启应用程序
+// asAdmin: 是否以管理员权限重启
+// envVars: 传递给新进程的环境变量 (格式: "KEY=VALUE")
+func RestartApplication(asAdmin bool, envVars ...string) error {
+	execPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("获取可执行文件路径失败: %w", err)
+	}
+
+	// 获取当前工作目录
+	wd, err := os.Getwd()
+	if err != nil {
+		wd = "" // 如果获取失败，使用空字符串，命令会使用默认目录
+	}
+
+	switch runtime.GOOS {
+	case "darwin":
+		// macOS 特殊处理
+		if asAdmin {
+			// 以管理员权限重启
+			return restartMacOSWithAdmin(execPath, wd, envVars...)
+		}
+		// 普通重启
+		return restartMacOS(execPath, wd, envVars...)
+
+	case "linux":
+		if asAdmin {
+			// 以管理员权限重启
+			return restartLinuxWithAdmin(execPath, envVars...)
+		}
+		// 普通重启
+		return restartLinux(execPath, wd, envVars...)
+
+	case "windows":
+		if asAdmin {
+			return fmt.Errorf("Windows 需要手动以管理员身份运行")
+		}
+		// 普通重启
+		return restartWindows(execPath, wd, envVars...)
+
+	default:
+		return fmt.Errorf("不支持的操作系统: %s", runtime.GOOS)
+	}
+}
+
+// restartMacOS macOS 普通重启
+func restartMacOS(execPath, workDir string, envVars ...string) error {
+	// 如果是 .app 包，使用 open 命令
+	if strings.Contains(execPath, ".app/Contents/MacOS/") {
+		appPath := execPath[:strings.Index(execPath, ".app/")+4]
+
+		// 使用 shell 脚本延迟启动，避免端口冲突
+		// sleep 1 秒后启动新进程，给旧进程足够时间释放端口
+		script := fmt.Sprintf("sleep 1 && open '%s'", appPath)
+
+		if len(envVars) > 0 {
+			// open 命令不支持直接设置环境变量，需要通过其他方式
+			MLog.Warn("macOS .app 重启不支持环境变量传递", "envVars", envVars)
+		}
+
+		cmd := exec.Command("sh", "-c", script)
+		if err := cmd.Start(); err != nil {
+			return fmt.Errorf("启动 .app 失败: %w", err)
+		}
+
+		MLog.Info("已调度延迟启动 .app (1秒后)")
+		return nil
+	}
+
+	// 普通可执行文件 - 也使用延迟启动
+	envPrefix := ""
+	if len(envVars) > 0 {
+		envPrefix = "env " + strings.Join(envVars, " ") + " "
+	}
+
+	script := fmt.Sprintf("sleep 1 && %s'%s' %s", envPrefix, execPath, strings.Join(os.Args[1:], " "))
+	cmd := exec.Command("sh", "-c", script)
+	cmd.Dir = workDir
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("启动新进程失败: %w", err)
+	}
+
+	MLog.Info("已调度延迟启动新进程 (1秒后)")
+	return nil
+}
+
+// restartMacOSWithAdmin macOS 以管理员权限重启
+func restartMacOSWithAdmin(execPath, workDir string, envVars ...string) error {
+	currentUID := os.Getuid()
+
+	// 构建启动命令，添加 sleep 避免端口冲突
+	launchCmd := fmt.Sprintf("'%s'", execPath)
+	if len(envVars) > 0 {
+		envPrefix := "env " + strings.Join(envVars, " ")
+		launchCmd = fmt.Sprintf("%s '%s'", envPrefix, execPath)
+		MLog.Info("将通过环境变量启动新进程", "envVars", envVars)
+	}
+
+	// 使用 osascript + launchctl 保持 GUI 会话
+	// 添加 sleep 1，让旧进程先退出释放端口
+	script := fmt.Sprintf(
+		`do shell script "sleep 1 && launchctl asuser %d %s &" with administrator privileges`,
+		currentUID, launchCmd,
+	)
+	cmd := exec.Command("osascript", "-e", script)
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("启动权限提升命令失败: %w", err)
+	}
+
+	MLog.Info("已请求管理员权限重启 (1秒后启动)")
+	return nil
+}
+
+// restartLinux Linux 普通重启
+func restartLinux(execPath, workDir string, envVars ...string) error {
+	// 使用 shell 脚本延迟启动，避免端口冲突
+	envPrefix := ""
+	if len(envVars) > 0 {
+		envPrefix = strings.Join(envVars, " ") + " "
+	}
+
+	args := strings.Join(os.Args[1:], " ")
+	script := fmt.Sprintf("sleep 1 && %s'%s' %s", envPrefix, execPath, args)
+
+	cmd := exec.Command("sh", "-c", script)
+	cmd.Dir = workDir
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("启动新进程失败: %w", err)
+	}
+
+	MLog.Info("已调度延迟启动新进程 (1秒后)")
+	return nil
+}
+
+// restartLinuxWithAdmin Linux 以管理员权限重启
+func restartLinuxWithAdmin(execPath string, envVars ...string) error {
+	if _, err := exec.LookPath("pkexec"); err == nil {
+		// 使用 shell 脚本延迟启动，避免端口冲突
+		args := []string{"sh", "-c"}
+
+		envPrefix := ""
+		if len(envVars) > 0 {
+			envPrefix = strings.Join(envVars, " ") + " "
+		}
+
+		cmdArgs := strings.Join(os.Args[1:], " ")
+		script := fmt.Sprintf("sleep 1 && %s'%s' %s", envPrefix, execPath, cmdArgs)
+		args = append(args, script)
+
+		cmd := exec.Command("pkexec", args...)
+		if err := cmd.Start(); err != nil {
+			return fmt.Errorf("使用 pkexec 启动失败: %w", err)
+		}
+
+		MLog.Info("已使用 pkexec 请求权限重启 (1秒后启动)")
+		return nil
+	}
+
+	if _, err := exec.LookPath("sudo"); err == nil {
+		return fmt.Errorf("需要管理员权限，请使用: sudo %s", execPath)
+	}
+
+	return fmt.Errorf("未找到权限提升工具(pkexec/sudo)")
+}
+
+// restartWindows Windows 普通重启
+func restartWindows(execPath, workDir string, envVars ...string) error {
+	// Windows 使用 timeout 命令延迟启动，避免端口冲突
+	// timeout /t 1 /nobreak > nul 等待1秒
+	args := strings.Join(os.Args[1:], " ")
+	script := fmt.Sprintf("timeout /t 1 /nobreak > nul && \"%s\" %s", execPath, args)
+
+	cmd := exec.Command("cmd", "/C", script)
+	cmd.Dir = workDir
+	cmd.Env = append(os.Environ(), envVars...)
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("启动新进程失败: %w", err)
+	}
+
+	MLog.Info("已调度延迟启动新进程 (1秒后)")
+	return nil
 }
 
 // GracefulExit 优雅退出程序，确保所有资源被正确清理

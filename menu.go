@@ -14,6 +14,7 @@ import (
 	"mimi/autostart"
 	appConfig "mimi/config"
 	"mimi/sysproxy"
+	"mimi/update"
 )
 
 var menu *application.Menu
@@ -22,6 +23,8 @@ var systemProxyCheckbox *application.MenuItem
 var tunProxyCheckbox *application.MenuItem
 var autoStartService *autostart.AutoStart
 var autoStartCheckbox *application.MenuItem
+var versionMenuItem *application.MenuItem
+var latestUpdateInfo *update.UpdateInfo // 缓存最新的更新信息
 
 func newMenu() *application.Menu {
 	if menu == nil {
@@ -159,8 +162,18 @@ func commonMenu() {
 
 func quitMenu() {
 	menu.AddSeparator()
-	// 添加版本信息菜单项（禁用点击，仅用于显示）
-	menu.Add("版本: " + GetVersion()).SetEnabled(false)
+
+	// 添加版本信息菜单项 - 可点击查看更新
+	versionText := "版本: " + GetVersion()
+	if latestUpdateInfo != nil && latestUpdateInfo.HasUpdate {
+		versionText = versionText + " ✨"
+	}
+
+	versionMenuItem = menu.Add(versionText).OnClick(func(_ *application.Context) {
+		// 每次点击都重新检查更新
+		checkAndUpdateOrNotify()
+	})
+
 	menu.Add("关于").OnClick(func(_ *application.Context) {
 		dialog := application.InfoDialog()
 		dialog.SetTitle("关于 Mimi")
@@ -168,12 +181,238 @@ func quitMenu() {
 		dialog.SetMessage(GetVersionInfo())
 		dialog.Show()
 	})
+
 	menu.AddSeparator()
 	menu.Add("退出应用").
 		SetAccelerator("CmdOrCtrl+Q").
 		OnClick(func(_ *application.Context) {
 			app.Quit()
 		})
+}
+
+// checkAndUpdateOrNotify 检查更新，有更新则直接下载，无更新则提示
+func checkAndUpdateOrNotify() {
+	updater := update.New(MLog, GetVersion())
+	// 如果 mihomo 已初始化,使用应用代理下载更新
+	if mcfg != nil && mcfg.General != nil && mcfg.General.MixedPort > 0 {
+		updater.SetProxy(mcfg.General.MixedPort)
+	}
+
+	// 在后台检查更新
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// 检查更新
+		info, err := updater.CheckForUpdates(ctx)
+		if err != nil {
+			MLog.Error("检查更新失败", "error", err)
+			dialog := application.InfoDialog()
+			dialog.SetTitle("检查更新失败")
+			dialog.SetMessage(fmt.Sprintf("无法检查更新: %v", err))
+			dialog.Show()
+			return
+		}
+
+		// 缓存更新信息
+		latestUpdateInfo = info
+
+		if !info.HasUpdate {
+			// 没有更新，显示提示
+			dialog := application.InfoDialog()
+			dialog.SetTitle("已是最新版本")
+			dialog.SetMessage(fmt.Sprintf("当前版本: %s\n\n您已经在使用最新版本了!", info.Current))
+			dialog.Show()
+			return
+		}
+
+		// 有更新，直接开始下载
+		dialog := application.InfoDialog()
+		dialog.SetTitle("开始更新")
+		dialog.SetMessage(fmt.Sprintf("正在下载更新: %s -> %s\n\n请稍候,下载完成后将自动重启...", info.Current, info.Latest))
+		dialog.Show()
+
+		// 执行自动更新
+		performAutoUpdateAndRefreshMenu(updater)
+	}()
+}
+
+// checkForUpdatesAndShow 后台检查更新并更新菜单显示（不弹窗提示）
+func checkForUpdatesAndShow() {
+	updater := update.New(MLog, GetVersion())
+	// 如果 mihomo 已初始化,使用应用代理检查更新
+	if mcfg != nil && mcfg.General != nil && mcfg.General.MixedPort > 0 {
+		updater.SetProxy(mcfg.General.MixedPort)
+	}
+
+	// 在后台检查更新,避免阻塞UI
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		info, err := updater.CheckForUpdates(ctx)
+		if err != nil {
+			MLog.Error("后台检查更新失败", "error", err)
+			return
+		}
+
+		// 缓存更新信息
+		latestUpdateInfo = info
+
+		// 更新版本菜单显示
+		updateVersionMenuItem()
+
+		if info.HasUpdate {
+			MLog.Info("后台检查发现新版本", "当前", info.Current, "最新", info.Latest)
+		} else {
+			MLog.Debug("后台检查：当前已是最新版本")
+		}
+	}()
+}
+
+// performAutoUpdateAndRefreshMenu 执行自动更新流程并在完成后刷新菜单
+func performAutoUpdateAndRefreshMenu(updater *update.Updater) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	// 应用更新
+	if err := updater.ApplyUpdate(ctx); err != nil {
+		MLog.Error("自动更新失败", "error", err)
+		dialog := application.InfoDialog()
+		dialog.SetTitle("更新失败")
+		dialog.SetMessage(fmt.Sprintf("自动更新失败: %v", err))
+		dialog.Show()
+
+		// 更新失败后，重新检查并刷新菜单
+		latestUpdateInfo = nil
+		updateVersionMenuItem()
+		return
+	}
+
+	MLog.Info("更新下载完成,准备重启应用")
+
+	// 检测当前是否以管理员权限运行
+	needAdmin := IsRunningAsRoot()
+	var envVars []string
+
+	// 如果当前有 TUN 模式权限,重启后也需要保持
+	if needAdmin {
+		MLog.Info("检测到当前以管理员权限运行,重启后将保持权限")
+		// 检查 TUN 是否启用,如果启用则传递环境变量
+		if mcfg != nil && mcfg.General != nil && mcfg.General.Tun.Enable {
+			envVars = append(envVars, "MIMI_ENABLE_TUN=1")
+			MLog.Info("TUN 模式已启用,重启后将自动启用")
+		}
+	}
+
+	// 调度延迟重启(1秒后启动新进程),根据当前权限决定重启方式
+	// 新进程会在1秒后启动,给当前进程足够时间优雅退出并释放端口
+	if err := RestartApplication(needAdmin, envVars...); err != nil {
+		MLog.Error("调度重启失败", "error", err)
+		dialog := application.InfoDialog()
+		dialog.SetTitle("更新成功")
+		dialog.SetMessage("更新已完成,但自动重启失败。\n\n请手动重启应用以应用更新。")
+		dialog.Show()
+		return
+	}
+
+	MLog.Info("已调度延迟重启,立即优雅退出当前进程释放端口")
+
+	// 立即优雅退出当前进程,释放所有端口和资源
+	// 新进程会在1秒后自动启动
+	GracefulExit()
+}
+
+// performAutoUpdate 执行自动更新流程
+func performAutoUpdate(updater *update.Updater) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	// 应用更新
+	if err := updater.ApplyUpdate(ctx); err != nil {
+		MLog.Error("自动更新失败", "error", err)
+		dialog := application.InfoDialog()
+		dialog.SetTitle("更新失败")
+		dialog.SetMessage(fmt.Sprintf("自动更新失败: %v\n\n请尝试手动下载更新", err))
+		dialog.Show()
+		return
+	}
+
+	MLog.Info("更新下载完成,准备重启应用")
+
+	// 检测当前是否以管理员权限运行
+	needAdmin := IsRunningAsRoot()
+	var envVars []string
+
+	// 如果当前有 TUN 模式权限,重启后也需要保持
+	if needAdmin {
+		MLog.Info("检测到当前以管理员权限运行,重启后将保持权限")
+		// 检查 TUN 是否启用,如果启用则传递环境变量
+		if mcfg != nil && mcfg.General != nil && mcfg.General.Tun.Enable {
+			envVars = append(envVars, "MIMI_ENABLE_TUN=1")
+			MLog.Info("TUN 模式已启用,重启后将自动启用")
+		}
+	}
+
+	// 调度延迟重启(1秒后启动新进程),根据当前权限决定重启方式
+	// 新进程会在1秒后启动,给当前进程足够时间优雅退出并释放端口
+	if err := RestartApplication(needAdmin, envVars...); err != nil {
+		MLog.Error("调度重启失败", "error", err)
+		dialog := application.InfoDialog()
+		dialog.SetTitle("更新成功")
+		dialog.SetMessage("更新已完成,但自动重启失败。\n\n请手动重启应用以应用更新。")
+		dialog.Show()
+		return
+	}
+
+	MLog.Info("已调度延迟重启,立即优雅退出当前进程释放端口")
+
+	// 立即优雅退出当前进程,释放所有端口和资源
+	// 新进程会在1秒后自动启动
+	GracefulExit()
+}
+
+// updateVersionMenuItem 更新版本菜单项的显示
+func updateVersionMenuItem() {
+	if versionMenuItem == nil {
+		return
+	}
+
+	versionText := "版本: " + GetVersion()
+	if latestUpdateInfo != nil && latestUpdateInfo.HasUpdate {
+		versionText = versionText + " ✨"
+	}
+
+	versionMenuItem.SetLabel(versionText)
+}
+
+// truncateReleaseNotes 截断过长的发布说明
+func truncateReleaseNotes(notes string, maxLen int) string {
+	if len(notes) <= maxLen {
+		return notes
+	}
+	return notes[:maxLen] + "..."
+}
+
+// startBackgroundUpdateChecker 启动后台更新检查
+// 在应用完全初始化后调用,定期检查更新
+func startBackgroundUpdateChecker() {
+	// 等待应用完全初始化
+	go func() {
+		// 等待5分钟后首次检查
+		time.Sleep(5 * time.Minute)
+
+		// 首次检查
+		checkForUpdatesAndShow()
+
+		// 之后每24小时检查一次
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			checkForUpdatesAndShow()
+		}
+	}()
 }
 
 func tunMenu() {
