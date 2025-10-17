@@ -11,3 +11,6 @@ config.yaml
 *.log
 logs/
 /.spec-workflow
+
+# macOS 系统文件
+.DS_Store
