@@ -26,6 +26,25 @@ var autoStartCheckbox *application.MenuItem
 var versionMenuItem *application.MenuItem
 var latestUpdateInfo *update.UpdateInfo // 缓存最新的更新信息
 
+// 代理状态检测器
+var proxyStatusChecker *ProxyStatusChecker
+
+// getProxyStatusText 获取状态显示文本(桥接函数)
+func getProxyStatusText() (icon string, text string) {
+	if proxyStatusChecker == nil {
+		return "⚪", "未代理"
+	}
+	return proxyStatusChecker.GetStatusText()
+}
+
+// startProxyStatusMonitor 启动代理状态后台监控(桥接函数)
+func startProxyStatusMonitor() {
+	if proxyStatusChecker == nil {
+		proxyStatusChecker = NewProxyStatusChecker()
+	}
+	proxyStatusChecker.StartMonitor()
+}
+
 func newMenu() *application.Menu {
 	if menu == nil {
 		menu = app.NewMenu()
@@ -52,6 +71,11 @@ func newMenu() *application.Menu {
 }
 
 func commonMenu() {
+	// 显示代理运行状态
+	icon, statusText := getProxyStatusText()
+	menu.Add(icon + " " + statusText).SetEnabled(false)
+	menu.AddSeparator()
+
 	settingMenu := menu.AddSubmenu("配置管理")
 	settingMenu.Add("刷新配置").OnClick(func(_ *application.Context) {
 		// 检查是否完全初始化

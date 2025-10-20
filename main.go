@@ -118,7 +118,10 @@ func main() {
 		IsFullyInitialized = true
 		MLog.Info("========== 后台初始化完成 ==========")
 
-		// 12. 启动后台更新检查
+		// 12. 启动代理状态监控
+		startProxyStatusMonitor()
+
+		// 13. 启动后台更新检查
 		startBackgroundUpdateChecker()
 	}()
 
