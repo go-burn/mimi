@@ -1,0 +1,16 @@
+.task
+bin
+frontend/dist
+frontend/node_modules
+build/linux/appimage/build
+build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
+.idea
+config.yaml
+
+# 日志文件
+*.log
+logs/
+/.spec-workflow
+
+# macOS 系统文件
+.DS_Store
