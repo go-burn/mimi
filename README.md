@@ -7,7 +7,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.24.7-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![Wails Version](https://img.shields.io/badge/Wails-v3-00D5FF?logo=wails&logoColor=white)](https://wails.io/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)](https://github.com/yourusername/mimi/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)](https://github.com/go-burn/mimi/releases)
 
 [功能特性](#-功能特性) · [快速开始](#-快速开始) · [使用指南](#-使用指南) · [开发文档](#-开发文档)
 
@@ -74,7 +74,7 @@ Mimi 是一款现代化的桌面代理应用,基于强大的 [Mihomo](https://gi
 
 ### 📥 下载安装
 
-**[📦 前往 Releases 页面下载最新版本](https://github.com/yourusername/mimi/releases)**
+**[📦 前往 Releases 页面下载最新版本](https://github.com/go-burn/mimi/releases)**
 
 根据您的操作系统选择对应的安装包:
 
@@ -394,7 +394,7 @@ chore: 构建/工具链相关
 
 #### 🐛 报告问题
 
-发现 Bug? 请[创建 Issue](https://github.com/yourusername/mimi/issues/new) 并提供:
+发现 Bug? 请[创建 Issue](https://github.com/go-burn/mimi/issues/new) 并提供:
 
 - **操作系统版本** (Windows 11 22H2, macOS 14.2 等)
 - **应用版本** (在托盘菜单 "关于" 中查看)
@@ -403,7 +403,7 @@ chore: 构建/工具链相关
 
 #### 💡 功能建议
 
-有好的想法? 欢迎在 [Discussions](https://github.com/yourusername/mimi/discussions) 中分享!
+有好的想法? 欢迎在 [Discussions](https://github.com/go-burn/mimi/discussions) 中分享!
 
 #### 🔧 提交代码
 
@@ -516,7 +516,7 @@ C:\Program Files\mimi\mimi.exe
 2. 发现新版本时,托盘菜单会显示 "🔄 检查更新 (有新版本)"
 3. 点击菜单项确认更新,应用会自动下载并重启
 
-也可手动从 [Releases](https://github.com/yourusername/mimi/releases) 下载最新版本。
+也可手动从 [Releases](https://github.com/go-burn/mimi/releases) 下载最新版本。
 
 </details>
 
@@ -540,8 +540,8 @@ C:\Program Files\mimi\mimi.exe
 
 ## 📞 联系与支持
 
-- **问题反馈**: [GitHub Issues](https://github.com/yourusername/mimi/issues)
-- **功能讨论**: [GitHub Discussions](https://github.com/yourusername/mimi/discussions)
+- **问题反馈**: [GitHub Issues](https://github.com/go-burn/mimi/issues)
+- **功能讨论**: [GitHub Discussions](https://github.com/go-burn/mimi/discussions)
 - **开发文档**: 查看上方 [开发文档](#-开发文档) 章节
 
 ---
@@ -550,7 +550,7 @@ C:\Program Files\mimi\mimi.exe
 
 ### Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=yourusername/mimi&type=Date)](https://star-history.com/#yourusername/mimi&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=go-burn/mimi&type=Date)](https://star-history.com/#go-burn/mimi&Date)
 
 ---
 
