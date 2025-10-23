@@ -2,7 +2,7 @@
 
 # Mimi
 
-**基于 Mihomo 内核的轻量级代理桌面应用**
+**基于 Mihomo 内核的轻量级GUI**
 
 [![Go Version](https://img.shields.io/badge/Go-1.24.7-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![Wails Version](https://img.shields.io/badge/Wails-v3-00D5FF?logo=wails&logoColor=white)](https://wails.io/)
@@ -187,31 +187,6 @@ function main(params) {
 ---
 
 ## 👨‍💻 开发文档
-
-### 项目架构
-
-```
-mimi/
-├── main.go              # 应用入口 - 快速启动流程
-├── menu.go              # 托盘菜单逻辑 - 代理组选择、延迟测试
-├── mihomo.go            # Mihomo 内核集成 - 配置加载与应用
-├── operator.go          # 代理操作接口 - 配置 CRUD
-├── privilege.go         # 权限提升 - TUN 模式权限管理
-├── proxy_status.go      # 代理状态监控 - 实时连接检测
-├── tray.go              # 系统托盘 - 菜单与图标管理
-├── version.go           # 版本信息与自更新 - GitHub Release
-├── vm.go                # JavaScript 虚拟机 - config.js 执行器
-├── window.go            # 窗口管理 - 配置编辑器
-├── config/              # 配置路径管理 - 跨平台路径
-├── autostart/           # 开机自启动 - 平台特定实现
-├── sysproxy/            # 系统代理设置 - Win/macOS 代理
-├── update/              # 自动更新逻辑 - go-github-selfupdate
-├── frontend/            # 前端资源 (Vite + Vanilla JS)
-│   ├── index.html
-│   ├── package.json
-│   └── public/
-└── build/               # 构建配置 - Wails/NSIS/Taskfile
-```
 
 ### 启动流程
 
