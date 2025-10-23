@@ -19,6 +19,8 @@
 
 Mimi 是一款现代化的桌面代理应用,基于强大的 [Mihomo](https://github.com/MetaCubeX/mihomo) 内核,使用 [Wails v3](https://wails.io/) 框架构建,提供**原生系统托盘体验**与**极速启动**性能。
 
+本项目仅用于本地网络管理与调试。
+
 ### ✨ 核心优势
 
 | 特性 | 说明 |
@@ -80,7 +82,6 @@ Mimi 是一款现代化的桌面代理应用,基于强大的 [Mihomo](https://gi
 
 **🪟 Windows**
 - `mimi-vX.X.X-windows-amd64-installer.exe` - 安装程序 (推荐,适用于 Intel/AMD 处理器)
-- `mimi-vX.X.X-windows-arm64-installer.exe` - 安装程序 (ARM64 处理器)
 - `mimi-vX.X.X-windows-amd64.zip` - 便携版
 - `mimi-vX.X.X-windows-arm64.zip` - 便携版
 
@@ -104,8 +105,6 @@ Mimi 是一款现代化的桌面代理应用,基于强大的 [Mihomo](https://gi
 ```javascript
 // config.js
 const subscriptions = {
-    "sub1": "https://your-subscription-url",  // 替换为您的订阅地址
-    "sub2": "https://another-subscription",   // 可添加多个订阅
 };
 ```
 
@@ -144,13 +143,6 @@ config.js 是一个 JavaScript 预处理器,允许你动态生成 Mihomo 配置:
 ```javascript
 // 自定义代理节点
 const customProxies = [
-    {
-        name: "自定义节点",
-        type: "vmess",
-        server: "example.com",
-        port: 443,
-        // ... 更多配置
-    }
 ];
 
 // 自定义规则
@@ -249,103 +241,6 @@ graph TB
     D --> D5[启动更新检查]
     D5 --> E[应用完全就绪]
 ```
-
-**关键代码位置**: `main.go:20-137`
-
-### 核心模块详解
-
-<details>
-<summary><b>🔌 Mihomo 内核集成 (mihomo.go)</b></summary>
-
-```go
-// 初始化 Mihomo 配置目录
-func InitMihomo(homeDir string) error {
-    constant.SetHomeDir(homeDir)
-    constant.SetConfig(constant.Path.Config())
-    // ...
-}
-
-// 应用配置
-func apply() {
-    cfg, err := executor.Parse()
-    executor.ApplyConfig(cfg, true)
-}
-```
-
-**主要功能**:
-- 配置文件加载与解析
-- Mihomo 配置应用
-- 日志系统配置
-
-</details>
-
-<details>
-<summary><b>⚙️ config.js 预处理 (vm.go)</b></summary>
-
-使用 [goja](https://github.com/dop251/goja) JavaScript 引擎执行配置预处理:
-
-```go
-func ProcessOverwrite() error {
-    vm := goja.New()
-    // 执行 config.js
-    result, err := vm.RunString(configJS)
-    // 处理返回的配置对象
-}
-```
-
-**工作流程**:
-1. 读取 `config.js` 文件
-2. 在 goja VM 中执行 JavaScript 代码
-3. 提取返回的配置对象
-4. 合并到 Mihomo 配置中
-
-</details>
-
-<details>
-<summary><b>🔄 自动更新机制 (version.go, update/)</b></summary>
-
-基于 [go-github-selfupdate](https://github.com/rhysd/go-github-selfupdate):
-
-```go
-func CheckForUpdates() (*UpdateInfo, error) {
-    latest, found, err := selfupdate.DetectLatest("owner/repo")
-    if !found || latest.Version.LTE(currentVersion) {
-        return nil, nil // 已是最新版本
-    }
-    return &UpdateInfo{Version: latest.Version}, nil
-}
-
-func ApplyUpdate(info *UpdateInfo) error {
-    return selfupdate.UpdateTo(info.AssetURL, currentBinaryPath)
-}
-```
-
-**更新流程**:
-1. 后台每小时检查 GitHub Releases
-2. 发现新版本时菜单显示提示
-3. 用户确认后下载并替换二进制文件
-4. 重启应用生效
-
-</details>
-
-<details>
-<summary><b>🛡️ TUN 模式权限提升 (privilege.go)</b></summary>
-
-**macOS**: 使用 `osascript` 弹出授权对话框
-```go
-cmd := exec.Command("osascript", "-e",
-    `do shell script "..." with administrator privileges`)
-```
-
-**Windows**: 通过 `ShellExecute` 请求 UAC 提升
-```go
-// 使用 runas 动词请求管理员权限
-ShellExecute(NULL, "runas", exePath, args, NULL, SW_NORMAL)
-```
-
-**环境变量传递**: `MIMI_ENABLE_TUN=1` 通知重启后的进程启用 TUN
-
-</details>
 
 ### 开发规范
 
