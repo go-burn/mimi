@@ -115,22 +115,26 @@ func (s *ProxyProcessService) getCacheFilePath(scriptURL string) string {
 }
 
 // loadCacheFromDisk 从磁盘加载缓存
-func (s *ProxyProcessService) loadCacheFromDisk(scriptURL string) (string, error) {
+// 返回值: code, isExpired, error
+func (s *ProxyProcessService) loadCacheFromDisk(scriptURL string) (string, bool, error) {
 	cachePath := s.getCacheFilePath(scriptURL)
 
-	// 检查cachePath文件是否过期
+	// 检查cachePath文件是否存在
 	fileInfo, err := os.Stat(cachePath)
 	if os.IsNotExist(err) {
-		return "", fmt.Errorf("缓存文件不存在")
+		return "", false, fmt.Errorf("缓存文件不存在")
 	}
-	if time.Now().Sub(fileInfo.ModTime()) > 24*time.Hour {
-		return "", fmt.Errorf("缓存已过期")
-	}
+
+	// 读取缓存内容
 	code, err := os.ReadFile(cachePath)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	return string(code), nil
+
+	// 检查是否过期(48小时)
+	isExpired := time.Now().Sub(fileInfo.ModTime()) > 48*time.Hour
+
+	return string(code), isExpired, nil
 }
 
 // saveCacheToDisk 保存缓存到磁盘
@@ -175,6 +179,7 @@ func (s *ProxyProcessService) ParseURLParams(rawURL string) (string, map[string]
 }
 
 // FetchRemoteScript 下载远程脚本(带磁盘缓存)
+// 策略: 优先使用缓存(即使过期),异步更新,缓存不存在时也异步下载并跳过
 func (s *ProxyProcessService) FetchRemoteScript(scriptURL string) (string, error) {
 	// 解析URL,去掉参数部分用作缓存key
 	baseURL, _, err := s.ParseURLParams(scriptURL)
@@ -184,17 +189,46 @@ func (s *ProxyProcessService) FetchRemoteScript(scriptURL string) (string, error
 
 	// 检查磁盘缓存
 	s.cacheMutex.RLock()
-	cached, err := s.loadCacheFromDisk(baseURL)
+	cached, isExpired, err := s.loadCacheFromDisk(baseURL)
 	s.cacheMutex.RUnlock()
-	if err == nil {
+
+	// 情况1: 缓存存在且未过期 - 直接返回
+	if err == nil && !isExpired {
 		return cached, nil
 	}
 
+	// 情况2: 缓存过期但存在 - 返回过期缓存,异步更新
+	if err == nil {
+		// 能执行到这里说明 isExpired 必然为 true
+		// 启动协程异步更新缓存
+		go func() {
+			if err := s.updateCache(baseURL); err != nil {
+				MLog.Warn("异步更新缓存失败", "url", baseURL, "error", err)
+			}
+		}()
+		return cached, nil
+	}
+
+	// 情况3: 缓存不存在 - 异步下载,直接跳过该脚本
+	go func() {
+		if err := s.updateCache(baseURL); err != nil {
+			MLog.Warn("异步下载脚本失败", "url", baseURL, "error", err)
+		} else {
+			MLog.Info("脚本首次下载完成", "url", baseURL)
+		}
+	}()
+
+	return "", fmt.Errorf("脚本缓存不存在,已启动异步下载")
+}
+
+// downloadScript 下载脚本内容
+func (s *ProxyProcessService) downloadScript(baseURL string) (string, error) {
 	resp, err := s.httpClient.Get(baseURL)
 	if err != nil {
 		return "", fmt.Errorf("下载脚本失败: %w", err)
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("下载脚本失败: %s", resp.Status)
 	}
@@ -204,16 +238,20 @@ func (s *ProxyProcessService) FetchRemoteScript(scriptURL string) (string, error
 		return "", fmt.Errorf("读取脚本内容失败: %w", err)
 	}
 
-	code := string(body)
+	return string(body), nil
+}
 
-	// 保存到磁盘缓存
-	s.cacheMutex.Lock()
-	if err = s.saveCacheToDisk(baseURL, code); err != nil {
-		MLog.Warn("保存脚本缓存失败", "error", err)
+// updateCache 异步更新缓存
+func (s *ProxyProcessService) updateCache(baseURL string) error {
+	code, err := s.downloadScript(baseURL)
+	if err != nil {
+		return err
 	}
-	s.cacheMutex.Unlock()
 
-	return code, nil
+	s.cacheMutex.Lock()
+	defer s.cacheMutex.Unlock()
+
+	return s.saveCacheToDisk(baseURL, code)
 }
 
 // ExecuteScript 执行单个脚本
