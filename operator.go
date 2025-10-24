@@ -32,6 +32,9 @@ type ProxyProcessService struct {
 	httpClient *http.Client
 	cacheDir   string // 缓存目录路径
 
+	downloadMutex sync.Mutex            // 下载锁
+	downloading   map[string]*sync.Cond // 正在下载的 URL -> Cond
+
 	vm *OverwriteVm
 }
 
@@ -53,8 +56,9 @@ func NewProxyProcessService(vm *OverwriteVm) *ProxyProcessService {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		cacheDir: cacheDir,
-		vm:       vm,
+		cacheDir:    cacheDir,
+		vm:          vm,
+		downloading: make(map[string]*sync.Cond),
 	}
 	return proxyProcessService
 }
@@ -241,16 +245,40 @@ func (s *ProxyProcessService) downloadScript(baseURL string) (string, error) {
 	return string(body), nil
 }
 
-// updateCache 异步更新缓存
+// updateCache 异步更新缓存,防止并发重复下载
 func (s *ProxyProcessService) updateCache(baseURL string) error {
+	// 获取或创建该URL的条件变量
+	s.downloadMutex.Lock()
+
+	cond, isDownloading := s.downloading[baseURL]
+	if isDownloading {
+		// 已有其他协程在下载,等待完成
+		cond.Wait()
+		s.downloadMutex.Unlock()
+		return nil
+	}
+
+	// 创建新的条件变量,标记正在下载
+	cond = sync.NewCond(&s.downloadMutex)
+	s.downloading[baseURL] = cond
+	s.downloadMutex.Unlock()
+
+	// 执行下载
 	code, err := s.downloadScript(baseURL)
+
+	// 下载完成,通知所有等待的协程
+	s.downloadMutex.Lock()
+	delete(s.downloading, baseURL)
+	cond.Broadcast()
+	s.downloadMutex.Unlock()
+
 	if err != nil {
 		return err
 	}
 
+	// 保存缓存
 	s.cacheMutex.Lock()
 	defer s.cacheMutex.Unlock()
-
 	return s.saveCacheToDisk(baseURL, code)
 }
 
