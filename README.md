@@ -173,7 +173,7 @@ function main(params) {
 
 **macOS**:
 ```
-~/Library/Application Support/mimi/
+~/.config/mimi/
 ├── mihomo/
 │   ├── config.yaml
 │   ├── Country.mmdb
