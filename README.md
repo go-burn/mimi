@@ -6,7 +6,7 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.24.7-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![Wails Version](https://img.shields.io/badge/Wails-v3-00D5FF?logo=wails&logoColor=white)](https://wails.io/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)](https://github.com/go-burn/mimi/releases)
 
 [功能特性](#-功能特性) · [快速开始](#-快速开始) · [使用指南](#-使用指南) · [开发文档](#-开发文档)
@@ -302,18 +302,29 @@ chore: 构建/工具链相关
 
 ## 📄 许可证
 
-本项目采用 **[MIT License](LICENSE)** 开源协议。
+本项目采用 **[GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE)** 开源协议。
 
 ```
-MIT License
+GNU Affero General Public License v3.0
 
-Copyright (c) 2025 Mimi Contributors
+Copyright (C) 2025 Mimi Contributors
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files...
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 ```
 
-您可以自由地使用、修改和分发本软件,但需保留版权声明。
+### AGPL-3.0 主要条款
+
+- ✅ **自由使用**: 可自由运行本软件
+- ✅ **自由修改**: 可修改源代码以满足需求
+- ✅ **自由分发**: 可分发原版或修改版
+- ⚠️ **强制开源**: 分发修改版时必须提供源代码
+- ⚠️ **网络使用条款**: 如果通过网络提供服务，也必须公开源代码
+- ⚠️ **衍生作品**: 基于本项目的衍生作品必须使用相同协议
+
+详细协议内容请查看 [LICENSE](LICENSE) 文件。
 
 ---
 
