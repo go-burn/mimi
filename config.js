@@ -15,9 +15,10 @@ const customProxies = [
 
 function transformProxiesConfig() {
     return [
-        {
-            url: "https://ghfast.top/https://raw.githubusercontent.com/Keywos/rule/main/rename.js#bl=true&blkey=%E5%AE%B6%E5%AE%BD%2BIPLC%2BIEPL%2B%E8%90%BD%E5%9C%B0%2BIPv6&flag=true&in=true&nm=true&out=en%2Bcn",
-        },
+        // sub Store的名称重命名脚本
+        // {
+        //     url: "https://ghfast.top/https://raw.githubusercontent.com/Keywos/rule/main/rename.js#bl=true&blkey=%E5%AE%B6%E5%AE%BD%2BIPLC%2BIEPL%2B%E8%90%BD%E5%9C%B0%2BIPv6&flag=true&in=true&nm=true&out=en%2Bcn",
+        // },
     ];
 }
 function transformBypassConfig() {
@@ -43,10 +44,7 @@ const domesticNameservers = [
 // 国外DNS服务器
 const foreignNameservers = [
     "https://cloudflare-dns.com/dns-query", // CloudflareDNS
-    "https://77.88.8.8/dns-query", // YandexDNS
-    "https://8.8.4.4/dns-query#ecs=1.1.1.1/24&ecs-override=true", // GoogleDNS
-    "https://208.67.222.222/dns-query#ecs=1.1.1.1/24&ecs-override=true", // OpenDNS
-    "https://9.9.9.9/dns-query", // Quad9DNS
+    "https://dns.google/dns-query",
 ];
 
 // DNS配置
@@ -60,10 +58,10 @@ const dnsConfig = {
     "cache-algorithm": "arc", // 缓存算法
     "enhanced-mode": "fake-ip", // 增强模式：伪IP
     "fake-ip-range": "198.18.0.1/16", // 伪IP地址范围
-    "default-nameserver": ["223.5.5.5", "1.2.4.8"],
-    "nameserver": ["system", ...domesticNameservers],
-    "proxy-server-nameserver": [...foreignNameservers],
-    "direct-nameserver": ["system", ...domesticNameservers],
+    "default-nameserver": ["tls://223.5.5.5", "tls://223.6.6.6"],
+    "nameserver": [...foreignNameservers],
+    "proxy-server-nameserver": [...domesticNameservers],
+    "direct-nameserver": [...domesticNameservers],
     "direct-nameserver-follow-policy": false, // 直连DNS不遵循策略
     "nameserver-policy": {
         "geosite:geolocation-!cn":foreignNameservers,
@@ -406,9 +404,9 @@ function overwriteRules(params) {
         // 中国手机号验证码相关服务域名列表
         "GEOSITE,category-number-verification-cn,DIRECT",
 
-        "GEOSITE,geolocation-!cn@cn,DIRECT", // !cn表示国外网站，@cn国内网站。不再国外并且在国内的直连。这一步已经筛选出了国内网站。 例如一些国内加速域名
+        "GEOSITE,geolocation-!cn@cn,DIRECT",
         "GEOSITE,geolocation-!cn,🎯 节点选择",// 筛选国外网站
-        "GEOSITE,geolocation-cn@!cn,🎯 节点选择",// geolocation-cn 整体是国内网站，但存在一些只能在国外访问的域名，那就先使用 @!cn 筛选出这些域名进行代理，剩下的走直连。如 jd.hk 之于 jd 分组
+        "GEOSITE,geolocation-cn@!cn,🎯 节点选择",
         "GEOSITE,geolocation-cn,DIRECT", // 国内网站
         "GEOSITE,cn,DIRECT",
 
