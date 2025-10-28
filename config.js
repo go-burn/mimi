@@ -379,8 +379,7 @@ const ruleProviders = {
         proxy: "🎯 节点选择"
     },
     cn: {
-        "type": "http", // 规则类型
-        "interval": 86400, // 更新间隔（秒），优化为 4 小时更新一次
+        ...textRuleProviderCommon,
         behavior: "domain",
         url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/cn.yaml",
         path: "./rule_set/MetaCubeX/cn.yaml",
