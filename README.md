@@ -17,7 +17,7 @@
 
 ## 📖 简介
 
-Mimi 是一款现代化的桌面代理应用,基于强大的 [Mihomo](https://github.com/MetaCubeX/mihomo) 内核,使用 [Wails v3](https://wails.io/) 框架构建,提供**原生系统托盘体验**与**极速启动**性能。
+Mimi 是一款轻量桌面应用,基于强大的 [Mihomo](https://github.com/MetaCubeX/mihomo) 内核,使用 [Wails v3](https://wails.io/) 框架构建,提供**原生系统托盘体验**与**极速启动**性能。
 
 本项目仅用于本地网络管理与调试。
 
