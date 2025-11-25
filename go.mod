@@ -4,13 +4,13 @@ go 1.24.7
 
 require (
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/dop251/goja v0.0.0-20251103141225-af2ceb9156d7
+	github.com/dop251/goja v0.0.0-20251121114222-56b1242a5f86
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/goccy/go-yaml v1.18.0
 	github.com/metacubex/mihomo v1.19.16
 	github.com/rhysd/go-github-selfupdate v1.2.3
 	github.com/sirupsen/logrus v1.9.3
-	github.com/wailsapp/wails/v3 v3.0.0-alpha.38
+	github.com/wailsapp/wails/v3 v3.0.0-alpha.41
 	golang.org/x/sys v0.38.0
 )
 

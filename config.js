@@ -257,7 +257,7 @@ function overwriteProxyGroups(params) {
         .map((item) => ({
             name: item.name  + " 自动选择",
             type: "url-test",
-            url: "https://cp.cloudflare.com/generate_204",
+            url: "https://www.google.com/generate_204",
             interval: 300,
             "include-all" :true,
             filter: item.filter,
@@ -293,7 +293,7 @@ function overwriteProxyGroups(params) {
         {
             name: "自动选择",
             type: "url-test",
-            url: "https://cp.cloudflare.com/generate_204",
+            url: "https://www.google.com/generate_204",
             interval: 300,
             "include-all" :true,
             "exclude-filter": excludeTerms,
@@ -302,7 +302,7 @@ function overwriteProxyGroups(params) {
         {
             name: "⚖️ 负载均衡",
             type: "load-balance",
-            url: "https://cp.cloudflare.com/generate_204",
+            url: "https://www.google.com/generate_204",
             interval: 300,
             strategy: "consistent-hashing",
             "include-all" :true,
@@ -431,15 +431,25 @@ function overwriteRules(params) {
 // 处理订阅信息
 function processProxyProviders(params) {
     let providers = {}
+
+    // selectedSubscription 是从 Go 代码注入的全局变量
+    // 空字符串表示"全部订阅",否则为具体订阅名称
+    const selected = typeof selectedSubscription !== 'undefined' ? selectedSubscription : '';
+
     for (let key in subscriptions) {
+        // 如果选中了特定订阅,只处理该订阅
+        if (selected !== '' && key !== selected) {
+            continue;
+        }
+
         providers[key] = {
             "type": "http", // 订阅类型
             "url": subscriptions[key], // 订阅地址
-            "interval": 86400, // 订阅更新时间间隔（秒），优化为 4 小时更新一次
+            "interval": 86400, // 订阅更新时间间隔(秒),优化为 24 小时更新一次
             "health-check": {
                 "enable": true,
                 "interval": 300,
-                "url": "https://cp.cloudflare.com/generate_204"
+                "url": "https://www.google.com/generate_204"
             },
             "override" :{
                 "additional-prefix": `[${key}] `,

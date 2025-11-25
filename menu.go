@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -28,6 +30,26 @@ var latestUpdateInfo *update.UpdateInfo // 缓存最新的更新信息
 
 // 代理状态检测器
 var proxyStatusChecker *ProxyStatusChecker
+
+// AppSettings 应用配置结构
+type AppSettings struct {
+	SelectedSubscription string `json:"selected_subscription"` // 选中的订阅，空字符串表示"全部订阅"
+	// 未来可扩展其他配置项:
+	// Theme                string `json:"theme"`
+	// WindowWidth          int    `json:"window_width"`
+	// WindowHeight         int    `json:"window_height"`
+}
+
+// 订阅选择相关
+const (
+	settingsFile          = "settings.json"
+	legacySelectedSubFile = ".selected_subscription" // 旧版本的文件名,用于迁移
+)
+
+var (
+	appSettings          AppSettings
+	selectedSubscription string // 当前选中的订阅,空字符串表示"全部订阅"
+)
 
 // getProxyStatusText 获取状态显示文本(桥接函数)
 func getProxyStatusText() (icon string, text string) {
@@ -71,6 +93,9 @@ func newMenu() *application.Menu {
 }
 
 func commonMenu() {
+	// 从缓存加载选中的订阅
+	loadSelectedSubscription()
+
 	// 显示代理运行状态
 	icon, statusText := getProxyStatusText()
 	menu.Add(icon + " " + statusText).SetEnabled(false)
@@ -116,6 +141,34 @@ func commonMenu() {
 			MLog.Error("打开文件失败", "error", err)
 		}
 	})
+
+	// 订阅列表子菜单
+	subscriptionsMenu := menu.AddSubmenu("订阅列表")
+	if OVM != nil {
+		subscriptions, err := OVM.Subscriptions()
+		if err != nil {
+			MLog.Error("获取订阅列表失败", "error", err)
+			subscriptionsMenu.Add("获取订阅列表失败").SetEnabled(false)
+		} else if len(subscriptions) == 0 {
+			subscriptionsMenu.Add("暂无订阅").SetEnabled(false)
+		} else {
+			// "全部订阅" 选项
+			subscriptionsMenu.AddRadio("全部订阅", selectedSubscription == "").OnClick(func(_ *application.Context) {
+				selectSubscription("")
+			})
+
+			// 为每个订阅创建单选按钮
+			for _, subName := range subscriptions {
+				isSelected := selectedSubscription == subName
+				subscriptionsMenu.AddRadio(subName, isSelected).OnClick(func(_ *application.Context) {
+					selectSubscription(subName)
+				})
+			}
+		}
+	} else {
+		subscriptionsMenu.Add("配置未加载").SetEnabled(false)
+	}
+
 	settingMenu.AddSeparator()
 	// 开机启动菜单项
 	isAutoStartEnabled := autoStartService.State()
@@ -566,7 +619,7 @@ func refreshMenu() {
 
 			MLog.Info("开始测试代理组延迟", "group", group.Name)
 			//调用代理组的 URLTest 方法
-			delayMap, err := group.URLTest(ctx, "https://cp.cloudflare.com/generate_204", expectedStatus)
+			delayMap, err := group.URLTest(ctx, "https://www.google.com/generate_204", expectedStatus)
 			if err != nil {
 				MLog.Error("测试失败", "group", group.Name, "error", err)
 				return
@@ -604,4 +657,101 @@ func refreshMenu() {
 	if systemTray != nil {
 		systemTray.SetMenu(menu)
 	}
+}
+
+// loadSelectedSubscription 从文件加载选中的订阅
+func loadSelectedSubscription() {
+	appDataDir, err := appConfig.GetAppDataDir()
+	if err != nil {
+		MLog.Warn("获取应用数据目录失败", "error", err)
+		selectedSubscription = ""
+		return
+	}
+
+	// 尝试从新版 settings.json 加载
+	settingsPath := filepath.Join(appDataDir, settingsFile)
+	if loadSettingsFromJSON(settingsPath) {
+		selectedSubscription = appSettings.SelectedSubscription
+		if selectedSubscription == "" {
+			MLog.Info("加载订阅选择: 全部订阅")
+		} else {
+			MLog.Info("加载订阅选择", "subscription", selectedSubscription)
+		}
+		return
+	}
+
+	// 默认值
+	selectedSubscription = ""
+	MLog.Info("使用默认订阅选择: 全部订阅")
+}
+
+// loadSettingsFromJSON 从 JSON 文件加载配置
+func loadSettingsFromJSON(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+
+	if err := json.Unmarshal(data, &appSettings); err != nil {
+		MLog.Warn("解析配置文件失败", "error", err)
+		return false
+	}
+
+	return true
+}
+
+// saveSettingsToJSON 保存配置到 JSON 文件
+func saveSettingsToJSON(path string) error {
+	data, err := json.MarshalIndent(appSettings, "", "  ")
+	if err != nil {
+		return fmt.Errorf("序列化配置失败: %w", err)
+	}
+
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("写入配置文件失败: %w", err)
+	}
+
+	return nil
+}
+
+// selectSubscription 选择订阅并保存到文件
+func selectSubscription(name string) {
+	selectedSubscription = name
+	appSettings.SelectedSubscription = name
+
+	// 保存到 JSON 文件
+	appDataDir, err := appConfig.GetAppDataDir()
+	if err != nil {
+		MLog.Error("获取应用数据目录失败", "error", err)
+	} else {
+		settingsPath := filepath.Join(appDataDir, settingsFile)
+		if err := saveSettingsToJSON(settingsPath); err != nil {
+			MLog.Error("保存配置失败", "error", err)
+		}
+	}
+
+	if name == "" {
+		MLog.Info("选择了全部订阅")
+	} else {
+		MLog.Info("选择了订阅", "name", name)
+	}
+
+	// 重新加载配置
+	if !IsFullyInitialized {
+		dialog := application.InfoDialog()
+		dialog.SetTitle("初始化中")
+		dialog.SetMessage("应用正在后台初始化,请稍候...")
+		dialog.Show()
+		return
+	}
+
+	err = ProcessOverwrite()
+	if err != nil {
+		dialog := application.InfoDialog()
+		dialog.SetTitle("切换失败")
+		dialog.SetMessage(fmt.Sprintf("切换订阅失败:\n%s", err.Error()))
+		dialog.Show()
+		return
+	}
+	apply()
 }

@@ -5,6 +5,7 @@ import (
 	appConfig "mimi/config"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/dop251/goja"
 )
@@ -25,14 +26,29 @@ func NewOverwriteVm() (*OverwriteVm, error) {
 		defaultOverwriteJS := `// MIMI 配置覆写文件
 // 此文件用于自定义 mihomo 配置,会在默认配置基础上进行覆写
 
+// 订阅节点配置
+// 注意: 可以通过菜单选择使用哪个订阅或全部订阅
+const subscriptions = {
+    // "sub1": "https://your-subscription-url-1",
+    // "sub2": "https://your-subscription-url-2",
+};
+
 /**
  * main 函数: 生成或覆写 mihomo 配置
  * @param {Object} params - 默认配置对象
  * @returns {Object} 最终的 mihomo 配置
+ *
+ * 全局变量 selectedSubscription:
+ * - 从菜单选择的订阅名称
+ * - 空字符串表示"全部订阅"
+ * - 非空字符串表示选中的具体订阅名称
  */
 function main(params) {
     // 默认情况下,使用传入的默认配置
     // 你可以修改 params 中的任何字段来自定义配置
+
+    // 处理订阅
+    processProxyProviders(params);
 
     // 示例: 修改代理端口
     // params["mixed-port"] = 7891;
@@ -57,6 +73,41 @@ function main(params) {
     // ];
 
     return params;
+}
+
+/**
+ * processProxyProviders 函数: 处理订阅配置
+ * 根据 selectedSubscription 变量筛选需要加载的订阅
+ */
+function processProxyProviders(params) {
+    let providers = {};
+
+    // selectedSubscription 是从 Go 代码注入的全局变量
+    // 空字符串表示"全部订阅",否则为具体订阅名称
+    const selected = typeof selectedSubscription !== 'undefined' ? selectedSubscription : '';
+
+    for (let key in subscriptions) {
+        // 如果选中了特定订阅,只处理该订阅
+        if (selected !== '' && key !== selected) {
+            continue;
+        }
+
+        providers[key] = {
+            "type": "http",
+            "url": subscriptions[key],
+            "interval": 86400, // 24小时更新一次
+            "health-check": {
+                "enable": true,
+                "interval": 300,
+                "url": "https://www.google.com/generate_204"
+            },
+            "override": {
+                "additional-prefix": "[" + key + "] ",
+            },
+        };
+    }
+
+    params["proxy-providers"] = providers;
 }
 
 /**
@@ -131,6 +182,9 @@ func (vm *OverwriteVm) Main(params map[string]interface{}) (map[string]interface
 	if !ok {
 		return nil, fmt.Errorf("未找到 main 函数")
 	}
+
+	// 注入选中的订阅信息到 JavaScript 环境
+	vm.Set("selectedSubscription", selectedSubscription)
 
 	// 调用 main 函数并传入参数
 	result, err := mainFunc(goja.Undefined(), vm.ToValue(params))
@@ -211,4 +265,36 @@ func (vm *OverwriteVm) ByPass() ([]string, error) {
 	}
 
 	return bypassList, nil
+}
+
+// Subscriptions 获取订阅列表
+func (vm *OverwriteVm) Subscriptions() ([]string, error) {
+	// 获取 subscriptions 对象
+	subscriptionsValue := vm.Get("subscriptions")
+	if subscriptionsValue == nil || goja.IsUndefined(subscriptionsValue) || goja.IsNull(subscriptionsValue) {
+		return []string{}, nil // 返回空 map,不报错
+	}
+
+	// 将 JavaScript 对象转换为 Go map
+	subscriptionsExport := subscriptionsValue.Export()
+	if subscriptionsExport == nil {
+		return []string{}, nil
+	}
+
+	// 类型断言为 map[string]interface{}
+	subscriptionsMap, ok := subscriptionsExport.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("subscriptions 不是对象类型")
+	}
+
+	// 转换为 []string 并排序
+	var result []string
+	for key := range subscriptionsMap {
+		result = append(result, key)
+	}
+
+	// 排序确保顺序稳定
+	sort.Strings(result)
+
+	return result, nil
 }
