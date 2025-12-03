@@ -152,8 +152,9 @@ func commonMenu() {
 		} else if len(subscriptions) == 0 {
 			subscriptionsMenu.Add("暂无订阅").SetEnabled(false)
 		} else {
-			// "全部订阅" 选项
-			subscriptionsMenu.AddRadio("全部订阅", selectedSubscription == "").OnClick(func(_ *application.Context) {
+			// "全部订阅" 选项,当selectedSubscription不等于空如果不在subscriptions当中则选择全部订阅
+			isAllSelected := selectedSubscription == "" || !contains(subscriptions, selectedSubscription)
+			subscriptionsMenu.AddRadio("全部订阅", isAllSelected).OnClick(func(_ *application.Context) {
 				selectSubscription("")
 			})
 
@@ -754,4 +755,14 @@ func selectSubscription(name string) {
 		return
 	}
 	apply()
+}
+
+// contains 检查字符串切片中是否包含指定的字符串
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
 }
