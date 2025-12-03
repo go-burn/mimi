@@ -4,7 +4,7 @@ go 1.24.7
 
 require (
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/dop251/goja v0.0.0-20251121114222-56b1242a5f86
+	github.com/dop251/goja v0.0.0-20251201205617-2bb4c724c0f9
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/goccy/go-yaml v1.19.0
 	github.com/metacubex/mihomo v1.19.17
