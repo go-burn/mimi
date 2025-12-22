@@ -105,7 +105,7 @@ func commonMenu() {
 	settingMenu.Add("刷新配置").OnClick(func(_ *application.Context) {
 		// 检查是否完全初始化
 		if !IsFullyInitialized {
-			dialog := application.InfoDialog()
+			dialog := app.Dialog.Info()
 			dialog.SetTitle("初始化中")
 			dialog.SetMessage("应用正在后台初始化,请稍候...")
 			dialog.Show()
@@ -114,7 +114,7 @@ func commonMenu() {
 
 		err := ProcessOverwrite()
 		if err != nil {
-			dialog := application.InfoDialog()
+			dialog := app.Dialog.Info()
 			dialog.SetMessage(err.Error())
 			dialog.Show()
 			return
@@ -207,7 +207,7 @@ func commonMenu() {
 	systemProxyCheckbox = menu.AddCheckbox("系统代理", isProxyEnabled).OnClick(func(_ *application.Context) {
 		// 检查是否完全初始化
 		if !IsFullyInitialized {
-			dialog := application.InfoDialog()
+			dialog := app.Dialog.Info()
 			dialog.SetTitle("初始化中")
 			dialog.SetMessage("应用正在后台初始化,请稍候...")
 			dialog.Show()
@@ -253,7 +253,7 @@ func quitMenu() {
 	})
 
 	menu.Add("关于").OnClick(func(_ *application.Context) {
-		dialog := application.InfoDialog()
+		dialog := app.Dialog.Info()
 		dialog.SetTitle("关于 Mimi")
 		dialog.SetIcon(Icon)
 		dialog.SetMessage(GetVersionInfo())
@@ -285,7 +285,7 @@ func checkAndUpdateOrNotify() {
 		info, err := updater.CheckForUpdates(ctx)
 		if err != nil {
 			MLog.Error("检查更新失败", "error", err)
-			dialog := application.InfoDialog()
+			dialog := app.Dialog.Info()
 			dialog.SetTitle("检查更新失败")
 			dialog.SetMessage(fmt.Sprintf("无法检查更新: %v", err))
 			dialog.Show()
@@ -297,7 +297,7 @@ func checkAndUpdateOrNotify() {
 
 		if !info.HasUpdate {
 			// 没有更新，显示提示
-			dialog := application.InfoDialog()
+			dialog := app.Dialog.Info()
 			dialog.SetTitle("已是最新版本")
 			dialog.SetMessage(fmt.Sprintf("当前版本: %s\n\n您已经在使用最新版本了!", info.Current))
 			dialog.Show()
@@ -305,7 +305,7 @@ func checkAndUpdateOrNotify() {
 		}
 
 		// 有更新，直接开始下载
-		dialog := application.InfoDialog()
+		dialog := app.Dialog.Info()
 		dialog.SetTitle("开始更新")
 		dialog.SetMessage(fmt.Sprintf("正在下载更新: %s -> %s\n\n请稍候,下载完成后将自动重启...", info.Current, info.Latest))
 		dialog.Show()
@@ -356,7 +356,7 @@ func performAutoUpdateAndRefreshMenu(updater *update.Updater) {
 	// 应用更新
 	if err := updater.ApplyUpdate(ctx); err != nil {
 		MLog.Error("自动更新失败", "error", err)
-		dialog := application.InfoDialog()
+		dialog := app.Dialog.Info()
 		dialog.SetTitle("更新失败")
 		dialog.SetMessage(fmt.Sprintf("自动更新失败: %v", err))
 		dialog.Show()
@@ -387,7 +387,7 @@ func performAutoUpdateAndRefreshMenu(updater *update.Updater) {
 	// 新进程会在1秒后启动,给当前进程足够时间优雅退出并释放端口
 	if err := RestartApplication(needAdmin, envVars...); err != nil {
 		MLog.Error("调度重启失败", "error", err)
-		dialog := application.InfoDialog()
+		dialog := app.Dialog.Info()
 		dialog.SetTitle("更新成功")
 		dialog.SetMessage("更新已完成,但自动重启失败。\n\n请手动重启应用以应用更新。")
 		dialog.Show()
@@ -409,7 +409,7 @@ func performAutoUpdate(updater *update.Updater) {
 	// 应用更新
 	if err := updater.ApplyUpdate(ctx); err != nil {
 		MLog.Error("自动更新失败", "error", err)
-		dialog := application.InfoDialog()
+		dialog := app.Dialog.Info()
 		dialog.SetTitle("更新失败")
 		dialog.SetMessage(fmt.Sprintf("自动更新失败: %v\n\n请尝试手动下载更新", err))
 		dialog.Show()
@@ -436,7 +436,7 @@ func performAutoUpdate(updater *update.Updater) {
 	// 新进程会在1秒后启动,给当前进程足够时间优雅退出并释放端口
 	if err := RestartApplication(needAdmin, envVars...); err != nil {
 		MLog.Error("调度重启失败", "error", err)
-		dialog := application.InfoDialog()
+		dialog := app.Dialog.Info()
 		dialog.SetTitle("更新成功")
 		dialog.SetMessage("更新已完成,但自动重启失败。\n\n请手动重启应用以应用更新。")
 		dialog.Show()
@@ -507,7 +507,7 @@ func tunMenu() {
 			// 请求权限并重启(RequestAdminPrivilege 内部会处理退出)
 			// 传递 true 表示需要在获得权限后启用 TUN
 			if err := RequestAdminPrivilege(true); err != nil {
-				errorDialog := application.InfoDialog()
+				errorDialog := app.Dialog.Info()
 				errorDialog.SetMessage(fmt.Sprintf("请求权限失败: %v", err))
 				errorDialog.Show()
 			}
@@ -526,7 +526,7 @@ func tunMenu() {
 		// 修改配置并重新加载
 		if err := toggleTunMode(newTunState); err != nil {
 			MLog.Error("切换 TUN 模式失败", "error", err)
-			errorDialog := application.InfoDialog()
+			errorDialog := app.Dialog.Info()
 			errorDialog.SetMessage(fmt.Sprintf("切换 TUN 模式失败: %v", err))
 			errorDialog.Show()
 			return
@@ -634,7 +634,7 @@ func refreshMenu() {
 			proxyName := newProxy["_originalName"].(string)
 			proxy := allProxies.Get(proxyName)
 			sub.AddRadio(displayName+allProxies.Delay(proxyName), proxyName == group.Now).OnClick(func(_ *application.Context) {
-				dialog := application.InfoDialog()
+				dialog := app.Dialog.Info()
 				selector, ok := group.ProxyAdapter.(outboundgroup.SelectAble)
 				if !ok {
 					dialog.SetMessage("Must be a Selector " + proxyName)
@@ -739,7 +739,7 @@ func selectSubscription(name string) {
 
 	// 重新加载配置
 	if !IsFullyInitialized {
-		dialog := application.InfoDialog()
+		dialog := app.Dialog.Info()
 		dialog.SetTitle("初始化中")
 		dialog.SetMessage("应用正在后台初始化,请稍候...")
 		dialog.Show()
@@ -748,7 +748,7 @@ func selectSubscription(name string) {
 
 	err = ProcessOverwrite()
 	if err != nil {
-		dialog := application.InfoDialog()
+		dialog := app.Dialog.Info()
 		dialog.SetTitle("切换失败")
 		dialog.SetMessage(fmt.Sprintf("切换订阅失败:\n%s", err.Error()))
 		dialog.Show()
