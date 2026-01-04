@@ -37,7 +37,7 @@ jobs:
       - name: 设置 Go 环境
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.7'
+          go-version: '1.25.5'
           cache: true
 
       - name: 设置 Node.js 环境
