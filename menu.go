@@ -11,6 +11,8 @@ import (
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
 	"github.com/metacubex/mihomo/common/utils"
 	"github.com/metacubex/mihomo/component/profile/cachefile"
+	P "github.com/metacubex/mihomo/constant/provider"
+	"github.com/metacubex/mihomo/tunnel"
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"mimi/autostart"
@@ -99,6 +101,50 @@ func commonMenu() {
 	// 显示代理运行状态
 	icon, statusText := getProxyStatusText()
 	menu.Add(icon + " " + statusText).SetEnabled(false)
+	menu.Add("更新订阅").OnClick(func(_ *application.Context) {
+		// 检查是否完全初始化
+		if !IsFullyInitialized {
+			dialog := app.Dialog.Info()
+			dialog.SetTitle("初始化中")
+			dialog.SetMessage("应用正在后台初始化,请稍候...")
+			dialog.Show()
+			return
+		}
+
+		// 后台更新所有远程订阅(HTTP 类型的 proxy provider)
+		go func() {
+			providers := tunnel.Providers()
+			var updated, failed int
+			for _, provider := range providers {
+				// 仅更新远程订阅,跳过本地文件/兼容/内联类型
+				if provider.VehicleType() != P.HTTP {
+					continue
+				}
+				if err := provider.Update(); err != nil {
+					failed++
+					MLog.Error("更新订阅失败", "provider", provider.Name(), "error", err)
+				} else {
+					updated++
+					MLog.Info("更新订阅成功", "provider", provider.Name())
+				}
+			}
+
+			dialog := app.Dialog.Info()
+			if updated == 0 && failed == 0 {
+				dialog.SetTitle("更新订阅")
+				dialog.SetMessage("没有可更新的远程订阅")
+				dialog.Show()
+				return
+			}
+
+			dialog.SetTitle("更新订阅")
+			dialog.SetMessage(fmt.Sprintf("更新完成: 成功 %d 个, 失败 %d 个", updated, failed))
+			dialog.Show()
+
+			// 刷新菜单以反映最新的代理列表
+			refreshMenu()
+		}()
+	})
 	menu.AddSeparator()
 
 	settingMenu := menu.AddSubmenu("配置管理")
