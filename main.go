@@ -107,7 +107,12 @@ func main() {
 		MLog.Info("正在应用配置...")
 		apply()
 
-		// 11. 如果需要启用 TUN 模式
+		// 11. 启动流量统计、分钟聚合和内置面板
+		if err := startTrafficMonitor(); err != nil {
+			MLog.Error("启动流量统计失败", "error", err)
+		}
+
+		// 12. 如果需要启用 TUN 模式
 		if shouldEnableTun {
 			time.Sleep(500 * time.Millisecond)
 			MLog.Info("开始启用 TUN 模式")
@@ -121,10 +126,10 @@ func main() {
 		IsFullyInitialized = true
 		MLog.Info("========== 后台初始化完成 ==========")
 
-		// 12. 启动代理状态监控
+		// 13. 启动代理状态监控
 		startProxyStatusMonitor()
 
-		// 13. 启动后台更新检查
+		// 14. 启动后台更新检查
 		startBackgroundUpdateChecker()
 	}()
 

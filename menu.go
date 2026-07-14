@@ -245,6 +245,7 @@ func commonMenu() {
 				createWindow(app)
 			})
 	}
+	addTrafficMenu(menu)
 	menu.AddSeparator()
 
 	// 获取初始系统代理状态

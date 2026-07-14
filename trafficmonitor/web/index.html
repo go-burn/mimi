@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mimi 流量报表</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="report-app">
+    <header class="page-header">
+      <div class="page-heading">
+        <div class="title-row">
+          <h1>历史流量报表</h1>
+          <span class="data-note">分钟聚合 · 通常滞后约 1 分钟</span>
+        </div>
+        <p>分析代理流量消耗，并寻找值得验证的 DIRECT 域名。</p>
+      </div>
+      <div class="report-tabs" role="tablist">
+        <button type="button" class="report-tab active" data-view="overview" role="tab" aria-selected="true">流量总览</button>
+        <button type="button" id="ranking-tab" class="report-tab" data-view="ranking" role="tab" aria-selected="false">域名流量</button>
+        <button type="button" class="report-tab" data-view="candidates" role="tab" aria-selected="false">DIRECT 审计</button>
+      </div>
+    </header>
+
+    <section id="filter-panel" class="filter-panel overview-mode">
+      <label><span>时间范围</span><select id="minutes"><option value="60">1 小时</option><option value="360">6 小时</option><option value="1440" selected>24 小时</option><option value="10080">7 天</option><option value="43200">30 天</option></select></label>
+      <label id="route-control"><span>流量路径</span><select id="route"><option value="">全部</option><option value="proxy">代理</option><option value="direct">直连</option><option value="reject">拒绝</option></select></label>
+      <label id="dimension-control" class="hidden"><span>分析维度</span><select id="dimension"><option value="domain">域名</option><option value="ip">目标 IP</option><option value="country">目标 GeoIP</option><option value="node">节点</option><option value="node_region">节点地区</option><option value="proxy">代理链</option><option value="rule">规则类型</option><option value="process">进程</option></select></label>
+      <label id="search-control" class="search-field hidden"><span id="search-label">筛选域名</span><input id="search" type="search" placeholder="输入域名" autocomplete="off"></label>
+      <button type="button" id="refresh" class="refresh-button">刷新</button>
+    </section>
+    <div id="report-status" class="report-status hidden" role="status" aria-live="polite"></div>
+
+    <main>
+      <section id="overview-view">
+        <div class="summary-grid">
+          <article class="summary-card"><span>总流量</span><strong id="total-bytes">0 B</strong><small id="total-detail">上传 0 B · 下载 0 B</small></article>
+          <article class="summary-card proxy"><span>代理流量</span><strong id="proxy-bytes">0 B</strong><small id="proxy-ratio">占比 0%</small></article>
+          <article class="summary-card direct"><span>直连流量</span><strong id="direct-bytes">0 B</strong><small id="direct-ratio">占比 0%</small></article>
+          <article class="summary-card reject"><span>拒绝流量</span><strong id="reject-bytes">0 B</strong><small id="reject-ratio">占比 0%</small></article>
+        </div>
+
+        <div class="report-grid">
+          <section class="report-panel trend-panel">
+            <header>
+              <div><h2>流量趋势</h2><p id="trend-description">按时间查看代理与直连流量</p></div>
+              <div class="trend-actions">
+                <div class="trend-modes" role="group" aria-label="趋势指标">
+                  <button type="button" class="trend-mode active" data-trend-mode="route" aria-pressed="true">路径</button>
+                  <button type="button" class="trend-mode" data-trend-mode="direction" aria-pressed="false">上下行</button>
+                </div>
+                <div id="trend-legend" class="legend"></div>
+              </div>
+            </header>
+            <div id="trend-chart" class="trend-chart"><div class="empty">暂无趋势数据</div></div>
+          </section>
+
+          <section class="report-panel route-panel">
+            <header><div><h2>路径构成</h2><p>代理、直连和拒绝流量占比</p></div></header>
+            <div id="route-chart" class="route-chart"></div>
+          </section>
+        </div>
+
+        <div class="overview-detail-grid">
+          <section class="report-panel insight-panel domain-insight">
+            <header>
+              <div><h2>代理流量 Top 域名</h2><p>固定统计代理路径，按流量降序</p></div>
+              <div class="insight-header-actions"><span id="proxy-domain-count">0 项</span><button type="button" class="overview-drilldown" data-dimension="domain">查看全部</button></div>
+            </header>
+            <div id="proxy-domain-report" class="compact-rank-list"><div class="empty compact-empty">暂无代理域名流量</div></div>
+          </section>
+
+          <section class="report-panel insight-panel region-insight">
+            <header>
+              <div><h2>节点地区消耗</h2><p>固定统计代理路径，根据节点名称归类</p></div>
+              <div class="insight-header-actions"><span id="node-region-count">0 项</span><button type="button" class="overview-drilldown" data-dimension="node_region">查看全部</button></div>
+            </header>
+            <div id="node-region-report" class="compact-rank-list"><div class="empty compact-empty">暂无代理节点地区数据</div></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="ranking-view" class="hidden">
+        <section class="report-panel ranking-panel">
+          <header><div><h2 id="ranking-title">域名流量排行</h2><p id="ranking-description">按总流量降序，最多显示 100 项</p></div><span id="result-count">显示 0 项</span></header>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>#</th>
+                <th id="dimension-heading">域名</th>
+                <th><button type="button" class="sort-button active descending" data-sort="total">总流量</button></th>
+                <th><div class="sort-group"><button type="button" class="sort-button" data-sort="upload">上传</button><span>/</span><button type="button" class="sort-button" data-sort="download">下载</button></div></th>
+                <th><div class="sort-group route-sort-group"><button type="button" class="sort-button" data-sort="proxy">代理</button><button type="button" class="sort-button" data-sort="direct">直连</button><button type="button" class="sort-button" data-sort="reject">拒绝</button></div></th>
+                <th><button type="button" class="sort-button" data-sort="connections" title="每分钟活跃连接数累加，不代表去重会话数">活跃计数</button></th>
+              </tr></thead>
+              <tbody id="ranking-body"><tr><td colspan="6" class="empty">暂无历史数据</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="candidates-view" class="hidden">
+        <section class="report-panel candidate-report">
+          <header><div><h2>DIRECT 优化审计</h2><p>只列出历史上实际走代理的域名；建议来自历史路径与 GeoIP 启发式，使用前仍需验证。</p></div><span id="candidate-count">显示 0 项</span></header>
+          <div id="candidate-body" class="candidate-list"><div class="empty">暂无 DIRECT 候选</div></div>
+        </section>
+      </section>
+    </main>
+  </div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

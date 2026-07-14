@@ -77,6 +77,7 @@ func apply() {
 		return
 	}
 	mcfg = cfg
+	setTrafficProxyRoutes(cfg.Proxies)
 	setWindowHost(mcfg.Controller.ExternalController)
 
 	// 如果系统代理已启用,则更新代理配置(端口可能变化)
@@ -93,6 +94,9 @@ func apply() {
 }
 
 func shutdown() {
+	if err := stopTrafficMonitor(); err != nil && MLog != nil {
+		MLog.Warn("关闭流量统计失败", "error", err)
+	}
 	executor.Shutdown()
 }
 

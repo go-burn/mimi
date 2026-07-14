@@ -42,6 +42,15 @@ Mimi 是一款轻量桌面应用,基于强大的 [Mihomo](https://github.com/Met
   - 内置配置预处理器 (config.js 支持)
   - 代理组智能选择与延迟测试
 
+- **历史流量分析**
+  - 按域名、IP、目标 GeoIP 标签、节点、节点地区、代理链、规则类型和进程查看分钟流量排行
+  - 提供筛选范围内的总量指标、时间趋势、路径构成和 Top 排行报表
+  - 总览直接展示代理流量 Top 域名与节点地区消耗，并可跳转到完整排行
+  - 历史统计区分 `PROXY`、`DIRECT` 和 `REJECT`，便于核对 Clash / Mihomo 规则效果
+  - 根据代理流量、GeoIP、ASN 和命中规则生成 DIRECT 优化候选及精确域名规则
+  - 分钟级聚合写入本地 SQLite，默认保留 30 天；过期数据每日清理并增量回收磁盘空间
+  - 内置 Web 流量面板，无需额外部署前端或数据库
+
 - **系统集成**
   - 系统代理一键开启/关闭
   - TUN 模式支持 (需管理员权限)
@@ -123,6 +132,12 @@ const subscriptions = {
 
 - 右键托盘图标 → `代理组` → 选择你想要的节点
 
+#### 5️⃣ 查看历史流量并优化 DIRECT 规则
+
+1. 右键托盘图标，直接点击 `历史流量` 打开报表窗口
+2. 优先查看 `DIRECT 审计`，验证后复制 `DOMAIN,域名,DIRECT` 规则到 `config.js`
+3. 在流量排行中按域名、IP、节点、代理链、规则类型或进程核对流量去向
+
 ---
 
 ### 高级配置
@@ -167,6 +182,7 @@ function main(params) {
 │   ├── config.yaml      # Mihomo 主配置
 │   ├── Country.mmdb     # GeoIP 数据库
 │   └── cache.db         # 缓存
+├── traffic.sqlite        # 分钟级历史流量统计
 └── logs/
     └── mimi.log          # 应用日志
 ```
@@ -178,6 +194,7 @@ function main(params) {
 │   ├── config.yaml
 │   ├── Country.mmdb
 │   └── cache.db
+├── traffic.sqlite        # 分钟级历史流量统计
 └── logs/
     └── mimi.log
 ```
@@ -204,9 +221,10 @@ graph TB
     D --> D1[初始化 Mihomo 内核]
     D --> D2[处理 config.js]
     D --> D3[应用配置]
-    D --> D4[启动代理监控]
-    D --> D5[启动更新检查]
-    D5 --> E[应用完全就绪]
+    D --> D4[启动流量统计与内置面板]
+    D --> D5[启动代理监控]
+    D --> D6[启动更新检查]
+    D6 --> E[应用完全就绪]
 ```
 
 ### 开发规范
