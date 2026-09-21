@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/metacubex/mihomo/adapter/outboundgroup"
 	"github.com/metacubex/mihomo/common/utils"
 	"github.com/metacubex/mihomo/component/profile/cachefile"
 	P "github.com/metacubex/mihomo/constant/provider"
@@ -679,22 +678,13 @@ func refreshMenu() {
 		for _, newProxy := range newAll {
 			displayName := newProxy["name"].(string)
 			proxyName := newProxy["_originalName"].(string)
-			proxy := allProxies.Get(proxyName)
 			sub.AddRadio(displayName+allProxies.Delay(proxyName), proxyName == group.Now).OnClick(func(_ *application.Context) {
 				dialog := app.Dialog.Info()
-				selector, ok := group.ProxyAdapter.(outboundgroup.SelectAble)
-				if !ok {
-					dialog.SetMessage("Must be a Selector " + proxyName)
-					dialog.Show()
-					return
-				}
-
-				if err := selector.Set(proxyName); err != nil {
+				if err := setProxySelection(group.ProxyAdapter, proxyName, cachefile.Cache()); err != nil {
 					dialog.SetMessage(fmt.Sprintf("切换代理失败: %s", err.Error()))
 					dialog.Show()
 					return
 				}
-				cachefile.Cache().SetSelected(proxy.Name(), proxyName)
 			})
 		}
 	}

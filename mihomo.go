@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/goccy/go-yaml"
+	"github.com/metacubex/mihomo/component/profile"
+	"github.com/metacubex/mihomo/component/profile/cachefile"
 	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/hub"
@@ -66,6 +68,11 @@ func Parse(configBytes []byte, options ...hub.Option) (*config.Config, error) {
 		option(cfg)
 	}
 
+	// CacheFile 的读写受此开关控制；在内核恢复选择之前迁移旧版错误记录。
+	profile.StoreSelected.Store(cfg.Profile.StoreSelected)
+	if cfg.Profile.StoreSelected {
+		repairProxySelectionCache(cfg.Proxies, cachefile.Cache())
+	}
 	hub.ApplyConfig(cfg)
 	return cfg, nil
 }
