@@ -123,7 +123,7 @@ jobs:
           $env:BUILD_TIME = $BUILD_TIME
           $env:GIT_COMMIT = $GIT_COMMIT
           $env:GIT_BRANCH = $GIT_BRANCH
-          wails3 package ARCH=${{ matrix.arch }}
+          wails3 package GOARCH=${{ matrix.arch }}
 
       - name: 构建应用 (macOS)
         if: matrix.platform == 'darwin'
