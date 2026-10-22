@@ -156,6 +156,7 @@ func restartMacOS(execPath, workDir string, envVars ...string) error {
 		}
 
 		cmd := exec.Command("sh", "-c", script)
+		cmd.SysProcAttr = restartProcessAttributes()
 		if err := cmd.Start(); err != nil {
 			return fmt.Errorf("启动 .app 失败: %w", err)
 		}
@@ -173,6 +174,7 @@ func restartMacOS(execPath, workDir string, envVars ...string) error {
 	script := fmt.Sprintf("sleep 1 && %s'%s' %s", envPrefix, execPath, strings.Join(os.Args[1:], " "))
 	cmd := exec.Command("sh", "-c", script)
 	cmd.Dir = workDir
+	cmd.SysProcAttr = restartProcessAttributes()
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("启动新进程失败: %w", err)
@@ -201,6 +203,7 @@ func restartMacOSWithAdmin(execPath, workDir string, envVars ...string) error {
 		currentUID, launchCmd,
 	)
 	cmd := exec.Command("osascript", "-e", script)
+	cmd.SysProcAttr = restartProcessAttributes()
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("启动权限提升命令失败: %w", err)
