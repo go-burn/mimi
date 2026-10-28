@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 )
 
@@ -18,9 +19,8 @@ func NewEditorOpener() (*EditorOpener, error) {
 
 // OpenWithEditor 使用编辑器打开文件
 func (e *EditorOpener) OpenWithEditor(filePath string) error {
-	// 检查是否是root用户运行
-	if os.Geteuid() == 0 {
-		MLog.Info("检测到root权限,尝试以普通用户身份打开GUI编辑器", "file", filePath)
+	if runtime.GOOS == "darwin" || os.Geteuid() == 0 {
+		MLog.Info("尝试使用本机GUI编辑器打开文件", "file", filePath)
 		// 尝试寻找并使用GUI编辑器
 		if err := e.openWithGUIEditorAsUser(filePath); err == nil {
 			return nil
@@ -44,28 +44,34 @@ func (e *EditorOpener) OpenWithEditor(filePath string) error {
 
 // openWithGUIEditorAsUser 以普通用户身份打开GUI编辑器(用于root环境)
 func (e *EditorOpener) openWithGUIEditorAsUser(filePath string) error {
-	// 常见的GUI编辑器: 命令 -> 应用名称映射
-	type EditorInfo struct {
-		cmd     string
-		appName string // macOS 应用名称
+	if runtime.GOOS == "darwin" {
+		appDirs := []string{"/Applications"}
+		if home, err := os.UserHomeDir(); err == nil {
+			appDirs = append(appDirs, filepath.Join(home, "Applications"))
+		}
+		for _, name := range []string{"Cursor", "Visual Studio Code", "Sublime Text", "CotEditor", "BBEdit", "Zed", "GoLand", "IntelliJ IDEA", "Atom"} {
+			for _, dir := range appDirs {
+				appPath := filepath.Join(dir, name+".app")
+				if info, err := os.Stat(appPath); err != nil || !info.IsDir() {
+					continue
+				}
+				MLog.Info("使用本机编辑器打开文件", "app", appPath, "file", filePath)
+				if output, err := exec.Command("open", "-a", appPath, filePath).CombinedOutput(); err == nil {
+					return nil
+				} else {
+					MLog.Warn("启动编辑器失败,尝试下一个", "app", appPath, "error", err, "output", string(output))
+				}
+			}
+		}
+		return fmt.Errorf("未找到可用的本机GUI编辑器")
 	}
 
-	guiEditors := []EditorInfo{
-		{"cursor", "Cursor"},
-		{"code", "Visual Studio Code"},
-		{"goland", "GoLand"},
-		{"idea", "IntelliJ IDEA"},
-		{"subl", "Sublime Text"},
-		{"atom", "Atom"},
-	}
-
-	var foundEditor EditorInfo
+	guiEditors := []string{"cursor", "code", "goland", "idea", "subl", "atom"}
 	var foundPath string
 	for _, editor := range guiEditors {
-		if path, err := exec.LookPath(editor.cmd); err == nil {
-			foundEditor = editor
+		if path, err := exec.LookPath(editor); err == nil {
 			foundPath = path
-			MLog.Info("找到GUI编辑器", "editor", editor.cmd, "path", path)
+			MLog.Info("找到GUI编辑器", "editor", editor, "path", path)
 			break
 		}
 	}
@@ -76,11 +82,6 @@ func (e *EditorOpener) openWithGUIEditorAsUser(filePath string) error {
 
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
-	case "darwin":
-		// macOS: 使用 open -a 命令打开应用,这样可以绕过权限问题
-		MLog.Info("使用 open -a 打开编辑器", "app", foundEditor.appName, "file", filePath)
-		cmd = exec.Command("open", "-a", foundEditor.appName, filePath)
-
 	case "linux":
 		// Linux: 尝试以原始用户身份运行
 		originalUser := os.Getenv("SUDO_USER")
@@ -109,8 +110,7 @@ func (e *EditorOpener) openWithSystemDefault(filePath string) error {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		// macOS: 使用 open 命令,系统会根据文件后缀选择默认应用
-		cmd = exec.Command("open", filePath)
+		return e.openWithGUIEditorAsUser(filePath)
 	case "windows":
 		// Windows: 直接使用 notepad 强制以文本方式打开,避免执行可执行文件
 		cmd = exec.Command("notepad.exe", filePath)
@@ -134,6 +134,10 @@ func (e *EditorOpener) openWithTextEditor(filePath string) error {
 	case "darwin":
 		// macOS: 使用 TextEdit 或 open -e
 		cmd = exec.Command("open", "-e", filePath)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("打开 TextEdit 失败: %w: %s", err, output)
+		}
+		return nil
 	case "windows":
 		// Windows: 使用 notepad
 		cmd = exec.Command("notepad.exe", filePath)
