@@ -638,10 +638,19 @@ func refreshMenu() {
 	menu.Clear()
 	commonMenu()
 	tunMenu()
+	mode := tunnel.Mode()
+	menu.AddCheckbox("全局模式", mode == tunnel.Global).SetEnabled(IsFullyInitialized).OnClick(func(_ *application.Context) {
+		if tunnel.Mode() == tunnel.Global {
+			tunnel.SetMode(tunnel.Rule)
+			return
+		}
+		tunnel.SetMode(tunnel.Global)
+	})
 	menu.AddSeparator()
 	allProxies := getAllProxy()
-	groupAll, renameMap := allProxies.executeScript()
-	for _, group := range getProxyGroup() {
+	groups := getProxyGroups(tunnel.Proxies(), mode)
+	groupAll, renameMap := proxyGroupNames(groups)
+	for _, group := range groups {
 		newAll := groupAll[group.Name]
 		groupName := group.Name
 		sub := menu.AddSubmenu(groupName + allProxies.Delay(groupName))

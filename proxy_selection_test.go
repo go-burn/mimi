@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/metacubex/mihomo/component/profile/cachefile"
 	C "github.com/metacubex/mihomo/constant"
 	P "github.com/metacubex/mihomo/constant/provider"
+	"github.com/metacubex/mihomo/tunnel"
 )
 
 func newSelectionTestCache(t *testing.T) *cachefile.CacheFile {
@@ -63,6 +65,29 @@ func newSelectionTestGroup(t *testing.T, kind, name, url string, children ...C.P
 		t.Fatal(err)
 	}
 	return adapter.NewProxy(group)
+}
+
+func TestProxyGroupsExposeGlobalSelectorInGlobalMode(t *testing.T) {
+	direct := adapter.NewProxy(outbound.NewDirect())
+	group := newSelectionTestGroup(t, "select", "节点选择", "", direct)
+	global := newSelectionTestGroup(t, "select", "GLOBAL", "", direct, group)
+	proxies := map[string]C.Proxy{direct.Name(): direct, group.Name(): group, global.Name(): global}
+
+	var names []string
+	for _, item := range getProxyGroups(proxies, tunnel.Rule) {
+		names = append(names, item.Name)
+	}
+	if !slices.Equal(names, []string{group.Name()}) {
+		t.Fatalf("rule mode groups = %v, want [%s]", names, group.Name())
+	}
+
+	groups := getProxyGroups(proxies, tunnel.Global)
+	if len(groups) != 2 || groups[0].ProxyAdapter != global.Adapter() || groups[1].Name != group.Name() {
+		t.Fatalf("global mode should show GLOBAL followed by %s", group.Name())
+	}
+	if !slices.Equal(groups[0].All, []string{direct.Name(), group.Name()}) {
+		t.Fatalf("GLOBAL choices = %v, want [%s %s]", groups[0].All, direct.Name(), group.Name())
+	}
 }
 
 func TestSetProxySelectionCachesParentWithoutChangingChild(t *testing.T) {

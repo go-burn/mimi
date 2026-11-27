@@ -24,35 +24,44 @@ type ProxyGroupInfo struct {
 	ProxyAdapter constant.ProxyAdapter
 }
 
-func getProxyGroup() []*ProxyGroupInfo {
-	proxies := tunnel.Proxies()
-	if len(proxies) == 0 {
+func getProxyGroups(proxies map[string]constant.Proxy, mode tunnel.TunnelMode) []*ProxyGroupInfo {
+	global := readProxyGroup(proxies["GLOBAL"])
+	if global == nil {
 		return nil
 	}
-	globalProxies, _ := proxies["GLOBAL"].Adapter().(ProxyGroup)
-	var globalInfo ProxyGroupInfo
-	b, _ := globalProxies.MarshalJSON()
-	_ = json.Unmarshal(b, &globalInfo)
-	var gs []*ProxyGroupInfo
-	for _, name := range globalInfo.All {
-		if p, ok := proxies[name]; ok {
-			g, ok := p.Adapter().(ProxyGroup)
-			if !ok {
-				continue
-			}
-			var info ProxyGroupInfo
-			b, _ := g.MarshalJSON()
-			_ = json.Unmarshal(b, &info)
-			if info.Hidden {
-				continue
-			}
-			info.Name = p.Name()
-			info.URLTest = g.URLTest
-			info.ProxyAdapter = p.Adapter()
-			gs = append(gs, &info)
+	var groups []*ProxyGroupInfo
+	if mode == tunnel.Global {
+		groups = append(groups, global)
+	}
+	for _, name := range global.All {
+		if group := readProxyGroup(proxies[name]); group != nil && !group.Hidden {
+			groups = append(groups, group)
 		}
 	}
-	return gs
+	return groups
+}
+
+func readProxyGroup(proxy constant.Proxy) *ProxyGroupInfo {
+	if proxy == nil {
+		return nil
+	}
+	proxyAdapter := proxy.Adapter()
+	group, ok := proxyAdapter.(ProxyGroup)
+	if !ok {
+		return nil
+	}
+	data, err := group.MarshalJSON()
+	if err != nil {
+		return nil
+	}
+	var info ProxyGroupInfo
+	if err := json.Unmarshal(data, &info); err != nil {
+		return nil
+	}
+	info.Name = proxy.Name()
+	info.URLTest = group.URLTest
+	info.ProxyAdapter = proxyAdapter
+	return &info
 }
 
 type AllProxyMap map[string]constant.Proxy
@@ -134,10 +143,10 @@ func (m AllProxyMap) FinalProxy(startProxyName string) string {
 	return findFinalProxy(startProxyName, make(map[string]bool))
 }
 
-func (m AllProxyMap) executeScript() (map[string][]map[string]interface{}, map[string]string) {
+func proxyGroupNames(groups []*ProxyGroupInfo) (map[string][]map[string]interface{}, map[string]string) {
 	groupAll := make(map[string][]map[string]interface{})
 	renameMap := make(map[string]string)
-	for _, group := range getProxyGroup() {
+	for _, group := range groups {
 		newAll, err := executeProxiesScript(group.All)
 		if err != nil {
 			MLog.Warn("清洗节点名失败, 使用原始节点名", "error", err)
